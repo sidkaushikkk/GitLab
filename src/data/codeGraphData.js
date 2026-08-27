@@ -1,0 +1,140 @@
+export const mockCodeGraph = {
+  nodes: [
+    {
+      id: 'app-root',
+      label: 'src/app.ts',
+      type: 'entrypoint',
+      layer: 'Application Root',
+      complexity: 'Low',
+      risk: 'LOW',
+      loc: 180,
+      x: 350,
+      y: 60,
+      description: 'Express server initialization, middleware mounting, and graceful shutdown listeners.'
+    },
+    {
+      id: 'auth-service',
+      label: 'src/auth/AuthService.ts',
+      type: 'service',
+      layer: 'Authentication',
+      complexity: 'High',
+      risk: 'HIGH',
+      loc: 480,
+      x: 180,
+      y: 180,
+      description: 'JWT token signing, session lifecycle, OAuth2 callback token exchange.'
+    },
+    {
+      id: 'auth-session',
+      label: 'src/auth/session.ts',
+      type: 'module',
+      layer: 'Authentication',
+      complexity: 'Medium',
+      risk: 'HIGH',
+      loc: 240,
+      x: 100,
+      y: 310,
+      description: 'Redis session store driver and atomic token revocation utilities.'
+    },
+    {
+      id: 'payment-router',
+      label: 'src/api/payment.ts',
+      type: 'controller',
+      layer: 'API Gateway',
+      complexity: 'High',
+      risk: 'HIGH',
+      loc: 520,
+      x: 520,
+      y: 180,
+      description: 'Stripe charge handler, customer credit balances, payment intent lifecycle.'
+    },
+    {
+      id: 'webhook-ctrl',
+      label: 'src/controllers/WebhookController.ts',
+      type: 'controller',
+      layer: 'API Gateway',
+      complexity: 'Medium',
+      risk: 'MEDIUM',
+      loc: 310,
+      x: 680,
+      y: 180,
+      description: 'Stripe webhook signatures, event deduplication, idempotency dispatch.'
+    },
+    {
+      id: 'ledger-settlement',
+      label: 'src/services/LedgerSettlement.ts',
+      type: 'service',
+      layer: 'Core Business',
+      complexity: 'High',
+      risk: 'CRITICAL',
+      loc: 640,
+      x: 420,
+      y: 320,
+      description: 'Double-entry merchant ledger settlements and multi-currency reconciliation.'
+    },
+    {
+      id: 'refund-ctrl',
+      label: 'src/controllers/RefundController.ts',
+      type: 'controller',
+      layer: 'API Gateway',
+      complexity: 'Medium',
+      risk: 'HIGH',
+      loc: 580,
+      x: 320,
+      y: 450,
+      description: 'Customer refund eligibility checks and stripe refund calls.'
+    },
+    {
+      id: 'db-connection',
+      label: 'src/database/connection.ts',
+      type: 'database',
+      layer: 'Data Storage',
+      complexity: 'Medium',
+      risk: 'CRITICAL',
+      loc: 190,
+      x: 260,
+      y: 450,
+      description: 'Knex PostgreSQL pool management and SSL cluster routing.'
+    },
+    {
+      id: 'redis-client',
+      label: 'src/database/redis.ts',
+      type: 'database',
+      layer: 'Data Storage',
+      complexity: 'Low',
+      risk: 'MEDIUM',
+      loc: 110,
+      x: 100,
+      y: 450,
+      description: 'IORedis client cluster connection and pub/sub subscriber pool.'
+    },
+    {
+      id: 'ext-stripe',
+      label: 'Stripe API Gateway',
+      type: 'external',
+      layer: 'External Service',
+      complexity: 'External',
+      risk: 'LOW',
+      loc: 0,
+      x: 720,
+      y: 340,
+      description: 'Third-party payment processor API (api.stripe.com).'
+    }
+  ],
+  edges: [
+    { from: 'app-root', to: 'auth-service', label: 'mounts' },
+    { from: 'app-root', to: 'payment-router', label: 'mounts' },
+    { from: 'app-root', to: 'webhook-ctrl', label: 'mounts' },
+    { from: 'auth-service', to: 'auth-session', label: 'imports' },
+    { from: 'auth-service', to: 'db-connection', label: 'queries' },
+    { from: 'auth-session', to: 'redis-client', label: 'reads/writes' },
+    { from: 'payment-router', to: 'auth-service', label: 'authenticates' },
+    { from: 'payment-router', to: 'ledger-settlement', label: 'records' },
+    { from: 'payment-router', to: 'ext-stripe', label: 'calls' },
+    { from: 'webhook-ctrl', to: 'ledger-settlement', label: 'triggers' },
+    { from: 'webhook-ctrl', to: 'redis-client', label: 'locks' },
+    { from: 'ledger-settlement', to: 'db-connection', label: 'transactions' },
+    { from: 'refund-ctrl', to: 'ledger-settlement', label: 'reverses' },
+    { from: 'refund-ctrl', to: 'ext-stripe', label: 'calls' }
+  ]
+};
