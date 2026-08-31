@@ -6,6 +6,7 @@ import { requestLogger } from './middleware/requestLogger.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
+import { repositoriesRouter } from './routes/repositories.js';
 
 export function createApp() {
   const app = express();
@@ -26,9 +27,18 @@ export function createApp() {
   // HTTP Request Logging
   app.use(requestLogger);
 
+  // Disable browser caching for all /api routes to prevent stale session and auth states
+  app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+  });
+
   // Application Routes
   app.use(healthRouter);
   app.use('/api/auth', authRouter);
+  app.use('/api/repositories', repositoriesRouter);
 
   // Handle 404 for unknown endpoints
   app.use(notFoundHandler);

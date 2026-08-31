@@ -32,7 +32,7 @@ export function TopBar({ onMobileMenuToggle }) {
     triggerAnalyze
   } = useApp();
 
-  const { user, isAuthenticated, loginWithGithub, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading, loginWithGithub, logout } = useAuth();
 
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
@@ -256,7 +256,9 @@ export function TopBar({ onMobileMenuToggle }) {
 
         {/* User Profile Menu */}
         <div className="relative pl-1 border-l border-zinc-800">
-          {isAuthenticated && user ? (
+          {isAuthLoading ? (
+            <div className="w-7 h-7 rounded-full bg-zinc-800 animate-pulse border border-zinc-700" />
+          ) : isAuthenticated && user ? (
             <>
               <button
                 onClick={() => {

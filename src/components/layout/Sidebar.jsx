@@ -24,7 +24,7 @@ import {
 
 export function Sidebar({ isMobileOpen, onMobileClose }) {
   const { currentRepo } = useApp();
-  const { user, isAuthenticated, loginWithGithub, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, loginWithGithub, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
@@ -139,7 +139,17 @@ export function Sidebar({ isMobileOpen, onMobileClose }) {
         </NavLink>
 
         {/* User profile item */}
-        {isAuthenticated && user ? (
+        {isLoading ? (
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-zinc-900/40 border border-zinc-850/80 animate-pulse">
+            <div className="w-6 h-6 rounded-full bg-zinc-800 shrink-0" />
+            {!isCollapsed && (
+              <div className="flex-1 space-y-1">
+                <div className="h-2.5 bg-zinc-800 rounded w-16" />
+                <div className="h-2 bg-zinc-850 rounded w-10" />
+              </div>
+            )}
+          </div>
+        ) : isAuthenticated && user ? (
           <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md bg-zinc-900/40 border border-zinc-850/80">
             <div className="flex items-center gap-2 min-w-0">
               <img

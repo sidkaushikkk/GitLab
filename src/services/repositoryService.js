@@ -1,54 +1,173 @@
 import { mockRepositories, mockAvailableGithubRepos } from '../data/repositoriesData';
 
+/**
+ * Augment a real connected repository database record with prototype metrics structure
+ * so that existing frontend components (Overview, Health, Security, Graph) continue rendering smoothly
+ */
+function augmentRepository(repo) {
+  const matchingMock = mockRepositories.find(m => m.name.toLowerCase() === repo.name.toLowerCase()) || mockRepositories[0];
+
+  return {
+    ...matchingMock,
+    id: repo.id || matchingMock.id,
+    name: repo.name,
+    organization: repo.owner || matchingMock.organization,
+    description: repo.description || matchingMock.description,
+    primaryLanguage: repo.language || matchingMock.primaryLanguage,
+    defaultBranch: repo.defaultBranch || matchingMock.defaultBranch,
+    visibility: repo.private ? 'Private' : 'Public',
+    status: repo.status || 'connected',
+    lastAnalyzed: repo.lastAnalyzedAt ? new Date(repo.lastAnalyzedAt).toLocaleTimeString() : 'Just now'
+  };
+}
+
 export const repositoryService = {
-  // Get all repositories with optional search and filters
+  /**
+   * Get all connected repositories from backend /api/repositories
+   * Falls back to mock data if unauthenticated or no repositories connected
+   */
   async getRepositories(filter = {}) {
-    await new Promise(resolve => setTimeout(resolve, 80));
-    let result = [...mockRepositories];
+    let result = [];
+
+    try {
+      const response = await fetch('/api/repositories', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data.repositories) && data.repositories.length > 0) {
+          result = data.repositories.map(augmentRepository);
+        }
+      }
+    } catch (err) {
+      // Backend not running or network failure
+    }
+
+    if (result.length === 0) {
+      result = [...mockRepositories];
+    }
+
+    // Apply client-side filters
     if (filter.search) {
       const q = filter.search.toLowerCase();
-      result = result.filter(r => 
-        r.name.toLowerCase().includes(q) || 
-        r.description.toLowerCase().includes(q) ||
-        r.primaryLanguage.toLowerCase().includes(q)
+      result = result.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        (r.description && r.description.toLowerCase().includes(q)) ||
+        (r.primaryLanguage && r.primaryLanguage.toLowerCase().includes(q))
       );
     }
     if (filter.language && filter.language !== 'All') {
       result = result.filter(r => r.primaryLanguage === filter.language);
     }
     if (filter.sortBy) {
-      if (filter.sortBy === 'health') {
-        result.sort((a, b) => b.metrics.healthScore - a.metrics.healthScore);
-      } else if (filter.sortBy === 'security') {
-        result.sort((a, b) => b.metrics.securityScore - a.metrics.securityScore);
+      if (filter.sortBy === 'health' && result[0]?.metrics) {
+        result.sort((a, b) => (b.metrics?.healthScore || 0) - (a.metrics?.healthScore || 0));
+      } else if (filter.sortBy === 'security' && result[0]?.metrics) {
+        result.sort((a, b) => (b.metrics?.securityScore || 0) - (a.metrics?.securityScore || 0));
       } else if (filter.sortBy === 'name') {
         result.sort((a, b) => a.name.localeCompare(b.name));
       }
     }
+
     return result;
   },
 
-  // Get a single repository by ID
+  /**
+   * Get a single repository by ID
+   */
   async getRepositoryById(id) {
-    await new Promise(resolve => setTimeout(resolve, 60));
-    const repo = mockRepositories.find(r => r.id === id);
-    if (!repo) {
-      return mockRepositories[0]; // fallback to default
+    try {
+      const response = await fetch(`/api/repositories/${id}`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.repository) {
+          return augmentRepository(data.repository);
+        }
+      }
+    } catch (err) {
+      // Fallback
     }
-    return repo;
+
+    const repo = mockRepositories.find(r => r.id === id);
+    return repo || mockRepositories[0];
   },
 
-  // List GitHub repositories available for import
+  /**
+   * List GitHub repositories available for import via GET /api/repositories/github
+   */
   async getAvailableGithubRepos(search = '') {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    let repos = [...mockAvailableGithubRepos];
+    let repos = [];
+
+    try {
+      const response = await fetch('/api/repositories/github', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data.repositories) && data.repositories.length > 0) {
+          repos = data.repositories.map(r => ({
+            name: r.name,
+            organization: r.owner,
+            primaryLanguage: r.language || 'Unknown',
+            visibility: r.visibility || (r.private ? 'Private' : 'Public'),
+            lastUpdated: r.updatedAt ? new Date(r.updatedAt).toLocaleDateString() : 'Recently',
+            stars: r.stars || 0,
+            isImported: !!r.isImported
+          }));
+        }
+      }
+    } catch (err) {
+      // Unauthenticated or network error
+    }
+
+    if (repos.length === 0) {
+      repos = [...mockAvailableGithubRepos];
+    }
+
     if (search) {
       const q = search.toLowerCase();
-      repos = repos.filter(r => 
-        r.name.toLowerCase().includes(q) || 
-        r.primaryLanguage.toLowerCase().includes(q)
+      repos = repos.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        (r.primaryLanguage && r.primaryLanguage.toLowerCase().includes(q)) ||
+        (r.organization && r.organization.toLowerCase().includes(q))
       );
     }
+
     return repos;
+  },
+
+  /**
+   * Connect and persist a new repository in PostgreSQL via POST /api/repositories
+   */
+  async connectRepository({ owner, name, provider = 'github' }) {
+    const response = await fetch('/api/repositories', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify({ owner, name, provider })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to connect repository.');
+    }
+
+    const data = await response.json();
+    return augmentRepository(data.repository);
   }
 };

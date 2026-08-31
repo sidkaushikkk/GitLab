@@ -14,7 +14,8 @@ export function AuthProvider({ children }) {
         headers: {
           'Accept': 'application/json'
         },
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store'
       });
 
       if (response.ok) {
@@ -48,7 +49,8 @@ export function AuthProvider({ children }) {
         headers: {
           'Accept': 'application/json'
         },
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store'
       });
     } catch (err) {
       console.error('Logout error:', err);

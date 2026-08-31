@@ -1,9 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { mockRepositories } from '../data/repositoriesData';
+import { repositoryService } from '../services/repositoryService';
+import { useAuth } from './AuthContext';
 
 const AppContext = createContext(null);
+const ACTIVE_REPO_STORAGE_KEY = 'gitlab_active_repo_id';
 
 export function AppProvider({ children }) {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [repositories, setRepositories] = useState(mockRepositories);
   const [currentRepo, setCurrentRepo] = useState(mockRepositories[0]);
   const [currentBranch, setCurrentBranch] = useState('main');
@@ -11,6 +15,35 @@ export function AppProvider({ children }) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [toasts, setToasts] = useState([]);
+
+  // Fetch connected repositories when authenticated or on manual refresh
+  const refreshRepositories = useCallback(async () => {
+    try {
+      const repos = await repositoryService.getRepositories();
+      if (Array.isArray(repos) && repos.length > 0) {
+        setRepositories(repos);
+        const savedRepoId = localStorage.getItem(ACTIVE_REPO_STORAGE_KEY);
+        const found = (savedRepoId ? repos.find(r => r.id === savedRepoId || r.name === savedRepoId) : null) || repos[0];
+        setCurrentRepo(found);
+        setCurrentBranch(found.defaultBranch || 'main');
+      }
+    } catch (err) {
+      // Fallback
+    }
+  }, []);
+
+  // React to auth state resolution
+  useEffect(() => {
+    if (!isAuthLoading) {
+      if (isAuthenticated) {
+        refreshRepositories();
+      } else {
+        setRepositories(mockRepositories);
+        setCurrentRepo(mockRepositories[0]);
+        setCurrentBranch(mockRepositories[0].defaultBranch || 'main');
+      }
+    }
+  }, [isAuthLoading, isAuthenticated, refreshRepositories]);
 
   // Listen for Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
@@ -40,15 +73,29 @@ export function AppProvider({ children }) {
   };
 
   const selectRepoById = (repoId) => {
-    const found = repositories.find(r => r.id === repoId) || repositories[0];
-    setCurrentRepo(found);
-    setCurrentBranch(found.defaultBranch || 'main');
-    addToast(`Switched repository to ${found.name}`, 'success');
+    const found = repositories.find(r => r.id === repoId || r.name === repoId) || repositories[0];
+    if (found) {
+      setCurrentRepo(found);
+      setCurrentBranch(found.defaultBranch || 'main');
+      localStorage.setItem(ACTIVE_REPO_STORAGE_KEY, found.id || found.name);
+      addToast(`Switched repository to ${found.name}`, 'success');
+    }
   };
 
   const selectBranch = (branch) => {
     setCurrentBranch(branch);
     addToast(`Switched branch to ${branch}`, 'info');
+  };
+
+  const addConnectedRepository = (newRepo) => {
+    setRepositories(prev => {
+      const exists = prev.some(r => r.id === newRepo.id || r.name === newRepo.name);
+      return exists ? prev.map(r => (r.id === newRepo.id || r.name === newRepo.name ? newRepo : r)) : [newRepo, ...prev];
+    });
+    setCurrentRepo(newRepo);
+    setCurrentBranch(newRepo.defaultBranch || 'main');
+    localStorage.setItem(ACTIVE_REPO_STORAGE_KEY, newRepo.id || newRepo.name);
+    addToast(`Successfully connected repository ${newRepo.name}`, 'success');
   };
 
   const toggleAiPanel = () => {
@@ -61,7 +108,7 @@ export function AppProvider({ children }) {
     addToast(`Started full analysis on ${currentRepo.name} (${currentBranch})`, 'info');
     setTimeout(() => {
       setIsAnalyzing(false);
-      addToast(`Analysis complete: Health score updated to ${currentRepo.metrics.healthScore}/100`, 'success');
+      addToast(`Analysis complete: Health score updated to ${currentRepo.metrics?.healthScore || 82}/100`, 'success');
     }, 3000);
   };
 
@@ -79,6 +126,8 @@ export function AppProvider({ children }) {
         setIsSearchModalOpen,
         selectRepoById,
         selectBranch,
+        addConnectedRepository,
+        refreshRepositories,
         toggleAiPanel,
         triggerAnalyze,
         addToast,

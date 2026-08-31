@@ -3,15 +3,18 @@ import { BrowserRouter } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider } from './context/AuthContext';
 import { AppRoutes } from './routes/AppRoutes';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export function App() {
   return (
     <BrowserRouter>
-      <AppProvider>
+      <ErrorBoundary>
         <AuthProvider>
-          <AppRoutes />
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
         </AuthProvider>
-      </AppProvider>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
