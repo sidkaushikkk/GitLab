@@ -76,7 +76,7 @@ export function TopBar({ onMobileMenuToggle }) {
             className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs font-mono font-medium text-zinc-200 hover:border-zinc-700 hover:bg-zinc-850 transition-colors"
           >
             <span className="w-2 h-2 rounded-full bg-cyan-400" />
-            <span className="max-w-[140px] truncate sm:max-w-[200px]">{currentRepo.name}</span>
+            <span className="max-w-[140px] truncate sm:max-w-[200px]">{currentRepo?.name ?? 'No repository'}</span>
             <ChevronDown size={13} className="text-zinc-500" />
           </button>
 
@@ -94,7 +94,7 @@ export function TopBar({ onMobileMenuToggle }) {
                       setIsRepoDropdownOpen(false);
                     }}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-left font-mono transition-colors ${
-                      repo.id === currentRepo.id
+                      repo.id === currentRepo?.id
                         ? 'bg-cyan-950/60 text-cyan-300 font-semibold'
                         : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
                     }`}
@@ -103,7 +103,7 @@ export function TopBar({ onMobileMenuToggle }) {
                       <div className="truncate">{repo.name}</div>
                       <div className="text-[10px] text-zinc-500">{repo.primaryLanguage}</div>
                     </div>
-                    {repo.id === currentRepo.id && <Check size={14} className="text-cyan-400 shrink-0" />}
+                    {repo.id === currentRepo?.id && <Check size={14} className="text-cyan-400 shrink-0" />}
                   </button>
                 ))}
               </div>
@@ -141,7 +141,7 @@ export function TopBar({ onMobileMenuToggle }) {
                 Branches
               </div>
               <div className="space-y-0.5">
-                {(currentRepo.branches || ['main']).map((branch) => (
+                {(currentRepo?.branches || ['main']).map((branch) => (
                   <button
                     key={branch}
                     onClick={() => {

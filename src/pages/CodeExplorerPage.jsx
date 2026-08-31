@@ -14,9 +14,11 @@ import {
 } from 'lucide-react';
 import { FileTree } from '../components/code/FileTree';
 import { CodeViewer } from '../components/code/CodeViewer';
+import { useLocation } from 'react-router-dom';
 
-export function CodeExplorerPage() {
+export function CodeExplorerPage({ headless = false }) {
   const { currentRepo, toggleAiPanel } = useApp();
+  const location = useLocation();
   const [fileTree, setFileTree] = useState([]);
   const [activeFilePath, setActiveFilePath] = useState('src/auth/AuthService.ts');
   const [fileContentData, setFileContentData] = useState(null);
@@ -29,11 +31,20 @@ export function CodeExplorerPage() {
       setIsLoading(true);
       const tree = await codeService.getFileTree();
       setFileTree(tree);
-      const content = await codeService.getFileContent(activeFilePath);
+
+      // Support citation navigation from AIChat: if location.state has a file path, open it
+      const targetFile = location.state?.file || activeFilePath;
+      const targetLine = location.state?.line || null;
+
+      setActiveFilePath(targetFile);
+      setHighlightedLine(targetLine);
+
+      const content = await codeService.getFileContent(targetFile);
       setFileContentData(content);
       setIsLoading(false);
     }
     loadTree();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentRepo.id]);
 
   const handleSelectFile = async (path) => {
@@ -48,7 +59,8 @@ export function CodeExplorerPage() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
-      {/* Header Bar */}
+      {/* Header Bar — hidden when embedded inside RepositoryDetailPage */}
+      {!headless && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
         <div>
           <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
@@ -69,6 +81,7 @@ export function CodeExplorerPage() {
           <span>Ask AI about this file</span>
         </button>
       </div>
+      )}
 
       {/* Explorer Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 h-[680px]">

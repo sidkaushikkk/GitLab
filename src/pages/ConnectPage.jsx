@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { repositoryService } from '../services/repositoryService';
@@ -49,6 +49,18 @@ export function ConnectPage() {
   const [progressPercent, setProgressPercent] = useState(15);
   const [pipelineLogs, setPipelineLogs] = useState([]);
 
+  // Ref to hold the analysis interval so we can clear it on unmount
+  const intervalRef = useRef(null);
+
+  // Clear the interval if the component unmounts during analysis
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
   const pipelineStages = [
     { name: 'Repository connected', log: 'Cloning repository HitachiSystems/payment-service at commit 8f9b2a1...' },
     { name: 'Files indexed', log: 'Discovered 284 source files (42,850 total lines of code)...' },
@@ -84,7 +96,7 @@ export function ConnectPage() {
     setProgressPercent(10);
     setPipelineLogs(['[00:01] Initializing GitLab Distributed Analysis Worker...']);
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setPipelineIndex((prev) => {
         const next = prev + 1;
         if (next < pipelineStages.length) {
@@ -95,7 +107,8 @@ export function ConnectPage() {
           ]);
           return next;
         } else {
-          clearInterval(interval);
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
           setProgressPercent(100);
           setPipelineLogs((logs) => [
             ...logs,

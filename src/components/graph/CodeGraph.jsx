@@ -40,6 +40,12 @@ export function CodeGraph({ graphData }) {
     return matchLayer && matchSearch;
   });
 
+  const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+
+  const filteredEdges = edges.filter(edge =>
+    filteredNodeIds.has(edge.from) && filteredNodeIds.has(edge.to)
+  );
+
   const isEdgeConnected = (edge) => {
     if (!selectedNode) return false;
     return edge.from === selectedNode.id || edge.to === selectedNode.id;
@@ -189,8 +195,8 @@ export function CodeGraph({ graphData }) {
             </marker>
           </defs>
 
-          {/* Edges */}
-          {edges.map((edge, idx) => {
+          {/* Edges — only rendered between visible (filtered) nodes */}
+          {filteredEdges.map((edge, idx) => {
             const fromNode = getNodeById(edge.from);
             const toNode = getNodeById(edge.to);
             if (!fromNode || !toNode) return null;

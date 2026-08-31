@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { Network, Info, Layers, RefreshCw } from 'lucide-react';
 import { CodeGraph } from '../components/graph/CodeGraph';
 
-export function CodeGraphPage() {
+export function CodeGraphPage({ headless = false }) {
   const { currentRepo } = useApp();
   const [graphData, setGraphData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +21,8 @@ export function CodeGraphPage() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
-      {/* Header */}
+      {/* Header — hidden when embedded inside RepositoryDetailPage */}
+      {!headless && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-800">
         <div>
           <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
@@ -42,6 +43,7 @@ export function CodeGraphPage() {
           </span>
         </div>
       </div>
+      )}
 
       {/* Interactive Canvas */}
       {graphData && <CodeGraph graphData={graphData} />}

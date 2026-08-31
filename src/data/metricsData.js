@@ -86,6 +86,82 @@ export const mockRiskHotspots = {
       riskLevel: 'MEDIUM',
       findingsCount: 4
     }
+  ],
+  'customer-api': [
+    {
+      id: 'hotspot-ca-1',
+      file: 'internal/gateway/auth_middleware.go',
+      complexity: 'Medium (Cyclomatic: 14)',
+      issuesCount: 1,
+      category: 'Authentication & Authorization',
+      description: 'Token validation does not enforce expiry on service-to-service JWTs in internal routes.',
+      riskLevel: 'HIGH',
+      findingsCount: 1
+    },
+    {
+      id: 'hotspot-ca-2',
+      file: 'internal/kafka/consumer.go',
+      complexity: 'Medium (Cyclomatic: 18)',
+      issuesCount: 2,
+      category: 'Reliability',
+      description: 'Kafka offset commit occurs before message processing; duplicate processing possible on crash.',
+      riskLevel: 'MEDIUM',
+      findingsCount: 2
+    }
+  ],
+  'internal-dashboard': [
+    {
+      id: 'hotspot-id-1',
+      file: 'src/components/FeatureFlagTable.tsx',
+      complexity: 'High (Cyclomatic: 28)',
+      issuesCount: 5,
+      category: 'Code Duplication & Debt',
+      description: 'Flag evaluation logic duplicated across 6 components; no shared utility function.',
+      riskLevel: 'HIGH',
+      findingsCount: 5
+    },
+    {
+      id: 'hotspot-id-2',
+      file: 'src/api/incidents.ts',
+      complexity: 'High (Cyclomatic: 22)',
+      issuesCount: 3,
+      category: 'Security',
+      description: 'Incident report API endpoint lacks authorization check on team scoping.',
+      riskLevel: 'CRITICAL',
+      findingsCount: 3
+    },
+    {
+      id: 'hotspot-id-3',
+      file: 'src/utils/metricsAggregator.ts',
+      complexity: 'Medium (Cyclomatic: 16)',
+      issuesCount: 2,
+      category: 'Performance',
+      description: 'Metric aggregation runs synchronously on the main thread, blocking UI during report load.',
+      riskLevel: 'MEDIUM',
+      findingsCount: 2
+    }
+  ],
+  'authentication-service': [
+    {
+      id: 'hotspot-as-1',
+      file: 'src/saml/assertion_validator.rs',
+      complexity: 'High (Cyclomatic: 21)',
+      issuesCount: 1,
+      category: 'Security & Auth Flow',
+      description: 'SAML assertion clock skew tolerance set to 600s — far exceeds recommended 60s maximum.',
+      riskLevel: 'HIGH',
+      findingsCount: 1
+    },
+    {
+      id: 'hotspot-as-2',
+      file: 'src/session/revocation_ring.rs',
+      complexity: 'Medium (Cyclomatic: 13)',
+      issuesCount: 1,
+      category: 'Reliability',
+      description: 'Revocation ring buffer uses fixed-size allocation; large-scale logout events may overflow.',
+      riskLevel: 'MEDIUM',
+      findingsCount: 1
+    }
   ]
 };
 
@@ -124,6 +200,93 @@ export const mockRecentActivities = {
       title: 'Technical debt reduced by 4.2 hours in src/utils/formatter.ts',
       author: 'elena.rostova',
       time: '2 hours ago',
+      badge: 'IMPROVEMENT',
+      badgeVariant: 'cyan'
+    }
+  ],
+  'customer-api': [
+    {
+      id: 'ca-act-1',
+      type: 'ANALYSIS_COMPLETED',
+      title: 'Incremental AST scan completed on branch feat/kafka-partitions',
+      author: 'Automated CI/CD',
+      time: '31 minutes ago',
+      badge: 'HEALTH 94',
+      badgeVariant: 'emerald'
+    },
+    {
+      id: 'ca-act-2',
+      type: 'PR_ANALYZED',
+      title: 'PR #38 analyzed: Optimize user cache layer',
+      author: 'ming.zhao',
+      time: '1 hour ago',
+      badge: 'LOW RISK',
+      badgeVariant: 'cyan'
+    },
+    {
+      id: 'ca-act-3',
+      type: 'SECURITY_ALERT',
+      title: 'Dependency advisory: Kafka client v2.4.1 — moderate severity',
+      author: 'GitLab Security Engine',
+      time: '3 hours ago',
+      badge: 'MEDIUM',
+      badgeVariant: 'rose'
+    }
+  ],
+  'internal-dashboard': [
+    {
+      id: 'id-act-1',
+      type: 'SECURITY_ALERT',
+      title: '2 new critical findings detected in src/api/incidents.ts',
+      author: 'GitLab Security Engine',
+      time: '18 minutes ago',
+      badge: 'CRITICAL',
+      badgeVariant: 'rose'
+    },
+    {
+      id: 'id-act-2',
+      type: 'PR_ANALYZED',
+      title: 'PR #77 analyzed: Refactor grid system layout',
+      author: 'priya.sharma',
+      time: '2 hours ago',
+      badge: 'MEDIUM RISK',
+      badgeVariant: 'rose'
+    },
+    {
+      id: 'id-act-3',
+      type: 'CODE_HEALTH',
+      title: 'Technical debt increased by 8.4 hours due to new duplications',
+      author: 'Automated Analysis',
+      time: '4 hours ago',
+      badge: 'REGRESSION',
+      badgeVariant: 'rose'
+    }
+  ],
+  'authentication-service': [
+    {
+      id: 'as-act-1',
+      type: 'ANALYSIS_COMPLETED',
+      title: 'Full security scan completed — 0 new critical findings',
+      author: 'Automated CI/CD',
+      time: '52 minutes ago',
+      badge: 'HEALTH 92',
+      badgeVariant: 'emerald'
+    },
+    {
+      id: 'as-act-2',
+      type: 'PR_ANALYZED',
+      title: 'PR #14 analyzed: FIDO2/WebAuthn MFA support',
+      author: 'lucas.petrov',
+      time: '2 hours ago',
+      badge: 'LOW RISK',
+      badgeVariant: 'cyan'
+    },
+    {
+      id: 'as-act-3',
+      type: 'CODE_HEALTH',
+      title: 'Test coverage improved to 92.5% after adding SAML unit tests',
+      author: 'lucas.petrov',
+      time: '5 hours ago',
       badge: 'IMPROVEMENT',
       badgeVariant: 'cyan'
     }

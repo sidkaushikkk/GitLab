@@ -28,7 +28,7 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 
-export function SecurityPage() {
+export function SecurityPage({ headless = false }) {
   const { currentRepo } = useApp();
   const [findings, setFindings] = useState([]);
   const [history, setHistory] = useState([]);
@@ -123,7 +123,8 @@ export function SecurityPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
+      {/* Header — hidden when embedded inside RepositoryDetailPage */}
+      {!headless && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
@@ -141,6 +142,7 @@ export function SecurityPage() {
           </span>
         </div>
       </div>
+      )}
 
       {/* Severity Counters & Trend Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

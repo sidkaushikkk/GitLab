@@ -16,7 +16,7 @@ import { SearchBar } from '../components/common/SearchBar';
 import { RiskBadge } from '../components/common/RiskBadge';
 import { useNavigate } from 'react-router-dom';
 
-export function PullRequestsPage() {
+export function PullRequestsPage({ headless = false }) {
   const { currentRepo } = useApp();
   const [pullRequests, setPullRequests] = useState([]);
   const [search, setSearch] = useState('');
@@ -41,7 +41,8 @@ export function PullRequestsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
+      {/* Header — hidden when embedded inside RepositoryDetailPage */}
+      {!headless && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
@@ -62,6 +63,7 @@ export function PullRequestsPage() {
           </span>
         </div>
       </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">

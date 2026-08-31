@@ -32,7 +32,7 @@ import {
 } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
 
-export function OverviewPage() {
+export function OverviewPage({ headless = false }) {
   const { currentRepo, currentBranch, isAnalyzing, triggerAnalyze } = useApp();
   const [trends, setTrends] = useState([]);
   const [hotspots, setHotspots] = useState([]);
@@ -63,7 +63,8 @@ export function OverviewPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Bar */}
+      {/* Header Bar — hidden when embedded inside RepositoryDetailPage */}
+      {!headless && (
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <div className="flex items-center gap-2.5">
@@ -99,6 +100,7 @@ export function OverviewPage() {
           </button>
         </div>
       </div>
+      )}
 
       {/* High-Level Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">

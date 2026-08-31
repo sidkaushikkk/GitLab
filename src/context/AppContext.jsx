@@ -56,6 +56,7 @@ export function AppProvider({ children }) {
   };
 
   const triggerAnalyze = () => {
+    if (!currentRepo) return;
     setIsAnalyzing(true);
     addToast(`Started full analysis on ${currentRepo.name} (${currentBranch})`, 'info');
     setTimeout(() => {

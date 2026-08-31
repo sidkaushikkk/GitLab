@@ -17,7 +17,7 @@ import { RiskBadge } from '../components/common/RiskBadge';
 import { DataTable } from '../components/common/DataTable';
 import { SearchBar } from '../components/common/SearchBar';
 
-export function DependenciesPage() {
+export function DependenciesPage({ headless = false }) {
   const { currentRepo } = useApp();
   const [dependencies, setDependencies] = useState([]);
   const [healthOverview, setHealthOverview] = useState(null);
@@ -112,7 +112,8 @@ export function DependenciesPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
+      {/* Header — hidden when embedded inside RepositoryDetailPage */}
+      {!headless && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
@@ -130,6 +131,7 @@ export function DependenciesPage() {
           </span>
         </div>
       </div>
+      )}
 
       {/* Dependency Health Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">

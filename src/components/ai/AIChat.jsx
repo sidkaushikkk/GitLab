@@ -34,7 +34,7 @@ export function AIChat({ isEmbedded = false, onCitationClick }) {
       setSuggestedPrompts(prompts);
     }
     init();
-  }, [currentRepo.id]);
+  }, [currentRepo?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,11 +72,16 @@ export function AIChat({ isEmbedded = false, onCitationClick }) {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleJumpToFile = (path) => {
+  const handleJumpToFile = (citation) => {
     if (onCitationClick) {
-      onCitationClick(path);
+      onCitationClick(citation);
     } else {
-      navigate('/code');
+      navigate('/code', {
+        state: {
+          file: citation.path,
+          line: citation.line
+        }
+      });
     }
   };
 
@@ -275,7 +280,7 @@ export function AIChat({ isEmbedded = false, onCitationClick }) {
                     {msg.citations.map((cite, cIdx) => (
                       <button
                         key={cIdx}
-                        onClick={() => handleJumpToFile(cite.path)}
+                        onClick={() => handleJumpToFile(cite)}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-750 text-cyan-300 font-mono text-[11px] border border-zinc-700 transition-colors"
                       >
                         <FileCode size={11} />
@@ -303,7 +308,7 @@ export function AIChat({ isEmbedded = false, onCitationClick }) {
             </div>
             <div className="rounded-xl p-3.5 bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400 flex items-center gap-2">
               <span className="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>Analyzing AST and reasoning across {currentRepo.name}...</span>
+              <span>Analyzing AST and reasoning across {currentRepo?.name ?? 'repository'}...</span>
             </div>
           </div>
         )}
@@ -342,7 +347,7 @@ export function AIChat({ isEmbedded = false, onCitationClick }) {
             type="text"
             value={inputQuery}
             onChange={(e) => setInputQuery(e.target.value)}
-            placeholder={`Ask GitLab AI about ${currentRepo.name}...`}
+            placeholder={`Ask GitLab AI about ${currentRepo?.name ?? 'your repository'}...`}
             className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-xs rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-cyan-500 font-sans"
           />
           <button
@@ -355,7 +360,7 @@ export function AIChat({ isEmbedded = false, onCitationClick }) {
           </button>
         </form>
         <div className="flex items-center justify-between mt-2 px-1 text-[10px] font-mono text-zinc-400">
-          <span>Context: {currentRepo.name} (main)</span>
+          <span>Context: {currentRepo?.name ?? '—'} (main)</span>
           <span>Indexed: 284 files</span>
         </div>
       </div>
@@ -378,7 +383,7 @@ export function AIChatPanel() {
           </div>
           <div>
             <div className="text-xs font-semibold text-zinc-100 font-mono">GitLab Copilot AI</div>
-            <div className="text-[10px] text-zinc-400 font-mono truncate">{currentRepo.name}</div>
+            <div className="text-[10px] text-zinc-400 font-mono truncate">{currentRepo?.name ?? '—'}</div>
           </div>
         </div>
 

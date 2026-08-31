@@ -4,3 +4,6 @@ skills
 .agents
 node_modules
 .DS_Store
+EXECUTION_PLAN.md
+.gitignore
+REPOSITORY_ANALYSIS.md
