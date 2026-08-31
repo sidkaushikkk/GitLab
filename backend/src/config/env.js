@@ -27,10 +27,34 @@ function validateConfig() {
     throw new Error('Missing required environment variable: DATABASE_URL');
   }
 
+  // GitHub OAuth Configuration
+  const githubClientId = process.env.GITHUB_CLIENT_ID || '';
+  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET || '';
+  const githubCallbackUrl = process.env.GITHUB_CALLBACK_URL || `http://localhost:${port}/api/auth/github/callback`;
+  
+  // Encryption key for storing GitHub access tokens at rest (AES-256-GCM requires 32 bytes)
+  const githubTokenEncryptionKey = process.env.GITHUB_TOKEN_ENCRYPTION_KEY || 'default-dev-encryption-key-must-be-32-chars-long!';
+  
+  // Session configuration
+  const sessionSecret = process.env.SESSION_SECRET || 'default-dev-session-secret-change-in-prod';
+  const sessionTtlDays = parseInt(process.env.SESSION_TTL_DAYS || '7', 10);
+  const sessionTtlMs = sessionTtlDays * 24 * 60 * 60 * 1000;
+
+  // Frontend URL for CORS and OAuth redirects
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
   return {
     port,
     nodeEnv,
     databaseUrl,
+    githubClientId,
+    githubClientSecret,
+    githubCallbackUrl,
+    githubTokenEncryptionKey,
+    sessionSecret,
+    sessionTtlDays,
+    sessionTtlMs,
+    frontendUrl,
     isProduction: nodeEnv === 'production',
     isDevelopment: nodeEnv === 'development',
     isTest: nodeEnv === 'test'

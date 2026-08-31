@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   GitBranch,
   Search,
@@ -10,7 +11,10 @@ import {
   Menu,
   Check,
   ShieldAlert,
-  GitPullRequest
+  GitPullRequest,
+  LogOut,
+  LogIn,
+  User
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -28,9 +32,12 @@ export function TopBar({ onMobileMenuToggle }) {
     triggerAnalyze
   } = useApp();
 
+  const { user, isAuthenticated, loginWithGithub, logout } = useAuth();
+
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   const notifications = [
     {
@@ -247,13 +254,58 @@ export function TopBar({ onMobileMenuToggle }) {
           <span className="hidden md:inline font-mono">AI Assistant</span>
         </button>
 
-        {/* User Profile Avatar */}
-        <div className="flex items-center gap-2 pl-1 border-l border-zinc-800">
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"
-            alt="User avatar"
-            className="w-7 h-7 rounded-full border border-zinc-700 object-cover"
-          />
+        {/* User Profile Menu */}
+        <div className="relative pl-1 border-l border-zinc-800">
+          {isAuthenticated && user ? (
+            <>
+              <button
+                onClick={() => {
+                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                  setIsRepoDropdownOpen(false);
+                  setIsBranchDropdownOpen(false);
+                  setIsNotificationsOpen(false);
+                }}
+                className="flex items-center gap-2 p-0.5 rounded-full hover:ring-2 hover:ring-cyan-500/50 transition-all"
+                aria-label="User Profile"
+              >
+                <img
+                  src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces'}
+                  alt={user.name || user.login}
+                  className="w-7 h-7 rounded-full border border-zinc-700 object-cover"
+                />
+              </button>
+
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-1.5 w-56 rounded-lg border border-zinc-800 bg-zinc-900 p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs">
+                  <div className="px-2 py-1.5 border-b border-zinc-800">
+                    <div className="font-semibold text-zinc-100 truncate">{user.name || user.login}</div>
+                    <div className="text-[11px] text-zinc-500 truncate">@{user.login}</div>
+                    {user.email && <div className="text-[10px] text-zinc-500 truncate">{user.email}</div>}
+                  </div>
+                  <div className="mt-1">
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsProfileDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-300 hover:bg-rose-950/40 hover:text-rose-300 transition-colors text-left"
+                    >
+                      <LogOut size={13} className="text-rose-400" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <button
+              onClick={loginWithGithub}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-850 text-cyan-300 border border-zinc-800 hover:border-cyan-800 text-xs font-mono transition-colors"
+            >
+              <LogIn size={13} />
+              <span className="hidden sm:inline">Sign In</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

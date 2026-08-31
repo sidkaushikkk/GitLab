@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
   FolderGit2,
@@ -16,11 +17,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
-  PlusCircle
+  PlusCircle,
+  LogOut,
+  LogIn
 } from 'lucide-react';
 
 export function Sidebar({ isMobileOpen, onMobileClose }) {
   const { currentRepo } = useApp();
+  const { user, isAuthenticated, loginWithGithub, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
@@ -135,19 +139,44 @@ export function Sidebar({ isMobileOpen, onMobileClose }) {
         </NavLink>
 
         {/* User profile item */}
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md bg-zinc-900/30 border border-zinc-850/60">
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"
-            alt="User avatar"
-            className="w-6 h-6 rounded-full border border-zinc-700 object-cover shrink-0"
-          />
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-zinc-200 truncate">Alex Chen</div>
-              <div className="text-[10px] text-zinc-500 font-mono truncate">Staff Platform Engineer</div>
+        {isAuthenticated && user ? (
+          <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md bg-zinc-900/40 border border-zinc-850/80">
+            <div className="flex items-center gap-2 min-w-0">
+              <img
+                src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces'}
+                alt={user.name || user.login}
+                className="w-6 h-6 rounded-full border border-zinc-700 object-cover shrink-0"
+              />
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-zinc-200 truncate">{user.name || user.login}</div>
+                  <div className="text-[10px] text-zinc-500 font-mono truncate">@{user.login}</div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+            {!isCollapsed && (
+              <button
+                onClick={logout}
+                title="Sign Out"
+                className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors"
+                aria-label="Sign Out"
+              >
+                <LogOut size={13} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={loginWithGithub}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-850 text-zinc-300 hover:text-zinc-100 border border-zinc-800 text-xs font-mono transition-colors ${
+              isCollapsed ? 'justify-center' : ''
+            }`}
+            title="Sign in with GitHub"
+          >
+            <LogIn size={13} className="text-cyan-400 shrink-0" />
+            {!isCollapsed && <span>Sign in with GitHub</span>}
+          </button>
+        )}
       </div>
     </div>
   );

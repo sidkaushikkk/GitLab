@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { repositoryService } from '../services/repositoryService';
 import {
   FolderGit2,
@@ -24,10 +25,11 @@ import {
 
 export function ConnectPage() {
   const { selectRepoById, addToast } = useApp();
+  const { user, isAuthenticated, loginWithGithub } = useAuth();
   const navigate = useNavigate();
 
   // Wizard Steps: 1: 'connect_github', 2: 'select_repo', 3: 'configure_analysis', 4: 'analyzing_progress', 5: 'complete'
-  const [step, setStep] = useState('connect_github');
+  const [step, setStep] = useState(isAuthenticated ? 'select_repo' : 'connect_github');
   const [isAuthorizingGithub, setIsAuthorizingGithub] = useState(false);
   const [githubRepos, setGithubRepos] = useState([]);
   const [searchRepo, setSearchRepo] = useState('');
@@ -79,14 +81,13 @@ export function ConnectPage() {
     fetchRepos();
   }, [searchRepo]);
 
-  // Handle GitHub Auth Simulation
+  // Handle GitHub Auth
   const handleConnectGithub = () => {
-    setIsAuthorizingGithub(true);
-    setTimeout(() => {
-      setIsAuthorizingGithub(false);
+    if (isAuthenticated) {
       setStep('select_repo');
-      addToast('GitHub account connected: @alex-chen-hitachi', 'success');
-    }, 1200);
+      return;
+    }
+    loginWithGithub();
   };
 
   // Start Pipeline Simulation

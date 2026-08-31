@@ -1,14 +1,25 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import { env } from './config/env.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
+import { authRouter } from './routes/auth.js';
 
 export function createApp() {
   const app = express();
 
-  // Basic security and parsing middleware
-  app.use(cors());
+  // CORS configuration allowing cookies/credentials from the frontend origin
+  app.use(cors({
+    origin: env.frontendUrl,
+    credentials: true
+  }));
+
+  // Parse HTTP-only cookies
+  app.use(cookieParser(env.sessionSecret));
+
+  // Parse JSON and form bodies
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
@@ -17,6 +28,7 @@ export function createApp() {
 
   // Application Routes
   app.use(healthRouter);
+  app.use('/api/auth', authRouter);
 
   // Handle 404 for unknown endpoints
   app.use(notFoundHandler);
