@@ -3,7 +3,10 @@ skills
 .claude
 .agents
 node_modules
+backend/node_modules
 .DS_Store
+.env
+.env.*
+!.env.example
 EXECUTION_PLAN.md
-.gitignore
 REPOSITORY_ANALYSIS.md
