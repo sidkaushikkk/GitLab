@@ -1,0 +1,50 @@
+{
+  "snapshotId": "680f7251-a3f6-42cf-9e91-a2f07dbe5863",
+  "repository": {
+    "id": "ef0af292-0109-4151-b7d1-e6c8669b1022",
+    "provider": "github",
+    "owner": "sidkaushikkk",
+    "name": "SidKaushik-first-repo",
+    "fullName": "sidkaushikkk/SidKaushik-first-repo"
+  },
+  "source": {
+    "provider": "github",
+    "branch": "main",
+    "commitSha": "31cfd2442b8ecfb4876ea04a4b5c727d81ae8e82"
+  },
+  "metadata": {
+    "isTruncated": false,
+    "maxFileSizeBytes": 1000000
+  },
+  "statistics": {
+    "totalFilesDiscovered": 1,
+    "filesIncluded": 1,
+    "filesSkipped": 0,
+    "totalBytes": 57
+  },
+  "manifest": {
+    "included": [
+      {
+        "path": "README.md",
+        "sha": "c2c4340fe0ef979062446d9e88973bc6680f92de",
+        "size": 57,
+        "language": "markdown",
+        "type": "documentation",
+        "lineCount": 4
+      }
+    ],
+    "skipped": []
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha": "c2c4340fe0ef979062446d9e88973bc6680f92de",
+      "size": 57,
+      "language": "markdown",
+      "type": "documentation",
+      "lineCount": 4,
+      "content": "# SidKaushik-first-repo\nJust a demo repo\nA demo commit .\n"
+    }
+  ],
+  "createdAt": "2026-09-02T09:15:12.427Z"
+}

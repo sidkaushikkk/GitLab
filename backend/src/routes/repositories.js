@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { githubService } from '../services/github.js';
+import { ingestionService } from '../services/ingestion/repositoryIngestion.js';
 import { pool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 
@@ -180,6 +181,68 @@ repositoriesRouter.get('/:id', requireAuth, async (req, res, next) => {
 
     return res.status(200).json({
       repository: mapRepoRow(rows[0])
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/repositories/:id/ingest
+ * Ingests repository files and generates a normalized repository snapshot
+ */
+repositoriesRouter.post('/:id/ingest', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { branch } = req.body || {};
+
+    const snapshot = await ingestionService.ingestRepository({
+      repositoryId: id,
+      userId: req.user.id,
+      branch
+    });
+
+    const statusCode = snapshot.reused ? 200 : 201;
+    return res.status(statusCode).json({
+      snapshot
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/repositories/:id/snapshots
+ * Lists all snapshots for a connected repository
+ */
+repositoriesRouter.get('/:id/snapshots', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const snapshots = await ingestionService.getRepositorySnapshots(id, req.user.id);
+
+    return res.status(200).json({
+      snapshots
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId
+ * Retrieves metadata (and optional payload) for a specific snapshot
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId', requireAuth, async (req, res, next) => {
+  try {
+    const { snapshotId } = req.params;
+    const includePayload = req.query.includePayload === 'true';
+
+    const snapshot = await ingestionService.getSnapshotById(snapshotId, req.user.id, {
+      includePayload
+    });
+
+    return res.status(200).json({
+      snapshot
     });
   } catch (err) {
     next(err);

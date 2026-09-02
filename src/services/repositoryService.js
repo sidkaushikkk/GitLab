@@ -169,5 +169,69 @@ export const repositoryService = {
 
     const data = await response.json();
     return augmentRepository(data.repository);
+  },
+
+  /**
+   * Trigger ingestion pipeline for a connected repository to produce a normalized snapshot
+   */
+  async ingestRepository(repositoryId, branch = null) {
+    const response = await fetch(`/api/repositories/${repositoryId}/ingest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify({ branch })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to ingest repository.');
+    }
+
+    const data = await response.json();
+    return data.snapshot;
+  },
+
+  /**
+   * Get all snapshots for a connected repository
+   */
+  async getSnapshots(repositoryId) {
+    try {
+      const response = await fetch(`/api/repositories/${repositoryId}/snapshots`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.snapshots || [];
+      }
+    } catch (err) {
+      // Fallback
+    }
+    return [];
+  },
+
+  /**
+   * Get single snapshot details
+   */
+  async getSnapshotById(repositoryId, snapshotId, includePayload = false) {
+    const response = await fetch(`/api/repositories/${repositoryId}/snapshots/${snapshotId}?includePayload=${includePayload}`, {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to fetch snapshot.');
+    }
+
+    const data = await response.json();
+    return data.snapshot;
   }
 };

@@ -221,7 +221,8 @@ async function runTests() {
 
     // Verify database contains 2 separate rows for payment-service (one for User A, one for User B)
     const { rows: totalRepoRows } = await pool.query(
-      'SELECT id, user_id FROM repositories WHERE provider = \'github\' AND owner = \'HitachiSystems\' AND name = \'payment-service\''
+      'SELECT id, user_id FROM repositories WHERE user_id IN ($1, $2) AND provider = \'github\' AND owner = \'HitachiSystems\' AND name = \'payment-service\'',
+      [userA.id, userB.id]
     );
     assert.equal(totalRepoRows.length, 2, 'Total rows for payment-service across both users must be 2');
     const userIds = totalRepoRows.map(r => r.user_id);

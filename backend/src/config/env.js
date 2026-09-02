@@ -43,6 +43,11 @@ function validateConfig() {
   // Frontend URL for CORS and OAuth redirects
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+  // Ingestion & Snapshot Configuration
+  const maxFileSizeBytes = parseInt(process.env.MAX_FILE_SIZE_BYTES || '1000000', 10);
+  const githubFileFetchConcurrency = parseInt(process.env.GITHUB_FILE_FETCH_CONCURRENCY || '5', 10);
+  const storagePath = process.env.STORAGE_PATH || path.resolve(__dirname, '../../storage');
+
   return {
     port,
     nodeEnv,
@@ -55,6 +60,9 @@ function validateConfig() {
     sessionTtlDays,
     sessionTtlMs,
     frontendUrl,
+    maxFileSizeBytes,
+    githubFileFetchConcurrency,
+    storagePath,
     isProduction: nodeEnv === 'production',
     isDevelopment: nodeEnv === 'development',
     isTest: nodeEnv === 'test'

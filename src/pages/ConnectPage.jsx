@@ -120,7 +120,7 @@ export function ConnectPage() {
       organization: user?.login || 'HitachiSystems'
     };
 
-    // Attempt real database connection
+    // Attempt real database connection & ingestion
     try {
       const connected = await repositoryService.connectRepository({
         owner: selectedRepoObj.organization || user?.login || 'HitachiSystems',
@@ -129,6 +129,10 @@ export function ConnectPage() {
       });
       if (connected) {
         addConnectedRepository(connected);
+        // Trigger normalized repository snapshot ingestion in backend
+        repositoryService.ingestRepository(connected.id, selectedBranch).catch(ingestErr => {
+          console.warn('Repository ingestion background note:', ingestErr.message);
+        });
       }
     } catch (err) {
       // Fallback if local without live GitHub connection
