@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { githubService } from '../services/github.js';
 import { ingestionService } from '../services/ingestion/repositoryIngestion.js';
+import { codeIntelligenceService } from '../services/intelligence/analysisRunner.js';
 import { pool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 
@@ -244,6 +245,98 @@ repositoriesRouter.get('/:id/snapshots/:snapshotId', requireAuth, async (req, re
     return res.status(200).json({
       snapshot
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/repositories/:id/snapshots/:snapshotId/analyze
+ * Triggers AST-based code intelligence analysis and ML feature extraction
+ */
+repositoriesRouter.post('/:id/snapshots/:snapshotId/analyze', requireAuth, async (req, res, next) => {
+  try {
+    const { id, snapshotId } = req.params;
+    const forceReanalyze = req.body?.force === true;
+
+    const summary = await codeIntelligenceService.analyzeSnapshot({
+      repositoryId: id,
+      snapshotId,
+      userId: req.user.id,
+      forceReanalyze
+    });
+
+    const statusCode = summary.reused ? 200 : 201;
+    return res.status(statusCode).json({
+      analysis: summary
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis
+ * Retrieves latest analysis run summary for a snapshot
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis', requireAuth, async (req, res, next) => {
+  try {
+    const { id, snapshotId } = req.params;
+
+    // Find latest completed analysis run
+    const { rows } = await pool.query(
+      `SELECT a.id 
+       FROM analysis_runs a
+       JOIN repositories r ON a.repository_id = r.id
+       WHERE a.repository_id = $1 AND a.snapshot_id = $2 AND r.user_id = $3
+       ORDER BY a.created_at DESC
+       LIMIT 1`,
+      [id, snapshotId, req.user.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        error: {
+          message: 'No analysis run found for this snapshot.',
+          status: 404
+        }
+      });
+    }
+
+    const summary = await codeIntelligenceService.getAnalysisRunSummary(rows[0].id, req.user.id);
+    return res.status(200).json({
+      analysis: summary
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis/features
+ * Retrieves ML-ready feature vectors for custom Python model ingestion (CP7)
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/features', requireAuth, async (req, res, next) => {
+  try {
+    const { snapshotId } = req.params;
+    const features = await codeIntelligenceService.getAnalysisFeatures(snapshotId, req.user.id);
+
+    return res.status(200).json(features);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis/graph
+ * Retrieves dependency & call graph nodes and edges for code architecture mapping
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/graph', requireAuth, async (req, res, next) => {
+  try {
+    const { snapshotId } = req.params;
+    const graph = await codeIntelligenceService.getAnalysisGraph(snapshotId, req.user.id);
+
+    return res.status(200).json(graph);
   } catch (err) {
     next(err);
   }

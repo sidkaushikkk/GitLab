@@ -233,5 +233,84 @@ export const repositoryService = {
 
     const data = await response.json();
     return data.snapshot;
+  },
+
+  /**
+   * Trigger AST-based code intelligence analysis and ML feature extraction for a snapshot
+   */
+  async analyzeSnapshot(repositoryId, snapshotId, force = false) {
+    const response = await fetch(`/api/repositories/${repositoryId}/snapshots/${snapshotId}/analyze`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify({ force })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to analyze snapshot.');
+    }
+
+    const data = await response.json();
+    return data.analysis;
+  },
+
+  /**
+   * Get latest completed analysis summary for a snapshot
+   */
+  async getAnalysis(repositoryId, snapshotId) {
+    const response = await fetch(`/api/repositories/${repositoryId}/snapshots/${snapshotId}/analysis`, {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to fetch analysis.');
+    }
+
+    const data = await response.json();
+    return data.analysis;
+  },
+
+  /**
+   * Get ML-ready feature vectors for snapshot
+   */
+  async getAnalysisFeatures(repositoryId, snapshotId) {
+    const response = await fetch(`/api/repositories/${repositoryId}/snapshots/${snapshotId}/analysis/features`, {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to fetch analysis features.');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get dependency and call graph for snapshot
+   */
+  async getAnalysisGraph(repositoryId, snapshotId) {
+    const response = await fetch(`/api/repositories/${repositoryId}/snapshots/${snapshotId}/analysis/graph`, {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to fetch analysis graph.');
+    }
+
+    return response.json();
   }
 };
