@@ -17,8 +17,9 @@ import { RiskBadge } from '../components/common/RiskBadge';
 import { DataTable } from '../components/common/DataTable';
 import { SearchBar } from '../components/common/SearchBar';
 
-export function DependenciesPage({ headless = false }) {
+export function DependenciesPage({ headless = false, repoId = null }) {
   const { currentRepo } = useApp();
+  const targetRepoId = repoId || currentRepo?.id;
   const [dependencies, setDependencies] = useState([]);
   const [healthOverview, setHealthOverview] = useState(null);
   const [search, setSearch] = useState('');
@@ -33,16 +34,17 @@ export function DependenciesPage({ headless = false }) {
         dependencyService.getDependencies({
           search,
           risk: riskFilter,
-          onlyVulnerable
+          onlyVulnerable,
+          repoId: targetRepoId
         }),
-        dependencyService.getHealthOverview()
+        dependencyService.getHealthOverview(targetRepoId)
       ]);
       setDependencies(deps);
       setHealthOverview(health);
       setIsLoading(false);
     }
     load();
-  }, [search, riskFilter, onlyVulnerable, currentRepo.id]);
+  }, [search, riskFilter, onlyVulnerable, targetRepoId]);
 
   const columns = [
     {
@@ -137,23 +139,23 @@ export function DependenciesPage({ headless = false }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
         <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800">
           <span className="text-zinc-500 text-[10px] uppercase block">Total Packages</span>
-          <span className="text-2xl font-bold text-zinc-100 mt-0.5 block">{healthOverview?.total || 92}</span>
-          <span className="text-[10px] text-zinc-400 block mt-1">34 Direct / 58 Transitive</span>
+          <span className="text-2xl font-bold text-zinc-100 mt-0.5 block">{healthOverview?.total ?? 92}</span>
+          <span className="text-[10px] text-zinc-400 block mt-1">{(healthOverview?.directDependencies ?? 34)} Direct / {(healthOverview?.transitiveDependencies ?? 58)} Dev/Transitive</span>
         </div>
         <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-900/40">
           <span className="text-amber-400 text-[10px] uppercase font-semibold block">Outdated Packages</span>
-          <span className="text-2xl font-bold text-amber-300 mt-0.5 block">{healthOverview?.outdated || 14}</span>
+          <span className="text-2xl font-bold text-amber-300 mt-0.5 block">{healthOverview?.outdated ?? 14}</span>
           <span className="text-[10px] text-zinc-400 block mt-1">New minor/major releases</span>
         </div>
         <div className="p-3.5 rounded-xl bg-rose-950/20 border border-rose-900/40">
           <span className="text-rose-400 text-[10px] uppercase font-semibold block">Vulnerable Packages</span>
-          <span className="text-2xl font-bold text-rose-300 mt-0.5 block">{healthOverview?.vulnerable || 3}</span>
+          <span className="text-2xl font-bold text-rose-300 mt-0.5 block">{healthOverview?.vulnerable ?? 3}</span>
           <span className="text-[10px] text-zinc-400 block mt-1">Open CVE advisories</span>
         </div>
         <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-900/40">
           <span className="text-emerald-400 text-[10px] uppercase font-semibold block">License Compliance</span>
-          <span className="text-lg font-bold text-emerald-300 mt-0.5 block">100% Permissive</span>
-          <span className="text-[10px] text-zinc-400 block mt-1">MIT / Apache 2.0 / BSD</span>
+          <span className="text-lg font-bold text-emerald-300 mt-0.5 block">{healthOverview?.licenseCompliance || '100% Permissive'}</span>
+          <span className="text-[10px] text-zinc-400 block mt-1">{healthOverview?.licenseDetails || 'MIT / Apache 2.0 / BSD'}</span>
         </div>
       </div>
 

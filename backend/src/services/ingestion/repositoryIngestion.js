@@ -5,6 +5,7 @@ import { githubTree } from './githubTree.js';
 import { shouldIncludeFile } from './fileFilter.js';
 import { fileFetcher } from './fileFetcher.js';
 import { defaultStorageProvider } from './storage/LocalStorageProvider.js';
+import { codeIntelligenceService } from '../intelligence/analysisRunner.js';
 
 /**
  * Maps a database snapshot row into a clean JSON API object
@@ -237,6 +238,20 @@ export const ingestionService = {
         },
         'Repository ingestion completed successfully'
       );
+
+      // Auto-trigger code intelligence analysis for newly created snapshot
+      try {
+        await codeIntelligenceService.analyzeSnapshot({
+          repositoryId: repo.id,
+          snapshotId,
+          userId,
+          forceReanalyze: false,
+          storageProvider
+        });
+        logger.info({ snapshotId, repositoryId: repo.id }, 'Auto-analysis completed for ingested snapshot');
+      } catch (analysisErr) {
+        logger.warn({ snapshotId, err: analysisErr.message }, 'Auto-analysis encountered non-fatal error on ingestion');
+      }
 
       return mapSnapshotRow(completedRows[0], { reused: false });
     } catch (ingestionErr) {

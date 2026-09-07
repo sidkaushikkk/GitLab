@@ -11,10 +11,13 @@ import {
   Server,
   FileCode,
   ShieldAlert,
+  AlertTriangle,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowRight,
   X
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { RiskBadge } from '../common/RiskBadge';
 
 export function CodeGraph({ graphData }) {
@@ -25,12 +28,21 @@ export function CodeGraph({ graphData }) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [selectedLayer, setSelectedLayer] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   const containerRef = useRef(null);
 
   if (!graphData) return null;
 
   const { nodes, edges } = graphData;
+
+  // Detect circular dependency loops (reciprocal edges A->B and B->A)
+  const circularEdges = new Set();
+  edges.forEach(e1 => {
+    if (edges.some(e2 => e2.from === e1.to && e2.to === e1.from)) {
+      circularEdges.add(`${e1.from}->${e1.to}`);
+    }
+  });
 
   const layers = ['ALL', 'Application Root', 'Authentication', 'API Gateway', 'Core Business', 'Data Storage', 'External Service'];
 
@@ -193,6 +205,17 @@ export function CodeGraph({ graphData }) {
             >
               <path d="M 0 1 L 8 5 L 0 9 z" fill="#06b6d4" />
             </marker>
+            <marker
+              id="arrow-cycle"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 1 L 8 5 L 0 9 z" fill="#f43f5e" />
+            </marker>
           </defs>
 
           {/* Edges — only rendered between visible (filtered) nodes */}
@@ -201,6 +224,7 @@ export function CodeGraph({ graphData }) {
             const toNode = getNodeById(edge.to);
             if (!fromNode || !toNode) return null;
 
+            const isCycle = circularEdges.has(`${edge.from}->${edge.to}`) || edge.isCycle;
             const isConnected = isEdgeConnected(edge);
             const isDimmed = selectedNode && !isConnected;
 
@@ -211,11 +235,11 @@ export function CodeGraph({ graphData }) {
                   y1={fromNode.y + 24}
                   x2={toNode.x + 80}
                   y2={toNode.y + 24}
-                  stroke={isConnected ? '#06b6d4' : '#3f3f46'}
-                  strokeWidth={isConnected ? 2.5 : 1.2}
-                  strokeDasharray={edge.label.includes('reverses') ? '4 3' : 'none'}
-                  markerEnd={isConnected ? 'url(#arrow-active)' : 'url(#arrow-default)'}
-                  opacity={isDimmed ? 0.2 : 0.8}
+                  stroke={isConnected ? '#06b6d4' : isCycle ? '#f43f5e' : '#3f3f46'}
+                  strokeWidth={isConnected ? 2.5 : isCycle ? 2 : 1.2}
+                  strokeDasharray={isCycle ? '5 3' : (edge.label || '').includes('reverses') ? '4 3' : 'none'}
+                  markerEnd={isConnected ? 'url(#arrow-active)' : isCycle ? 'url(#arrow-cycle)' : 'url(#arrow-default)'}
+                  opacity={isDimmed ? 0.2 : 0.9}
                 />
               </g>
             );
@@ -352,6 +376,19 @@ export function CodeGraph({ graphData }) {
               </div>
             </div>
 
+            {/* Circular Dependency Warning Banner */}
+            {Array.from(circularEdges).some(k => k.startsWith(`${selectedNode.id}->`) || k.endsWith(`->${selectedNode.id}`)) && (
+              <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 flex items-start gap-2">
+                <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block font-mono text-[11px]">Circular Dependency Detected</span>
+                  <span className="text-[11px] text-zinc-300 leading-tight block mt-0.5">
+                    This module participates in a mutual import cycle. Refactor to break coupling.
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div>
               <span className="text-zinc-400 font-semibold block mb-1">Description</span>
               <p className="text-zinc-300 leading-relaxed bg-zinc-950/60 p-2.5 rounded border border-zinc-800">
@@ -363,7 +400,7 @@ export function CodeGraph({ graphData }) {
             <div>
               <span className="text-zinc-400 font-semibold flex items-center gap-1 mb-1.5">
                 <ArrowUpRight size={13} className="text-cyan-400" />
-                Dependencies (Outward)
+                Dependencies (Outward: {edges.filter(e => e.from === selectedNode.id).length})
               </span>
               <div className="space-y-1 font-mono text-[11px]">
                 {edges.filter(e => e.from === selectedNode.id).length === 0 ? (
@@ -371,8 +408,10 @@ export function CodeGraph({ graphData }) {
                 ) : (
                   edges.filter(e => e.from === selectedNode.id).map((e, idx) => (
                     <div key={idx} className="p-1.5 rounded bg-zinc-950 border border-zinc-800 flex items-center justify-between">
-                      <span className="text-zinc-300 truncate">{getNodeById(e.to)?.label}</span>
-                      <span className="text-[10px] text-zinc-500">{e.label}</span>
+                      <span className="text-zinc-300 truncate">{getNodeById(e.to)?.label || e.to}</span>
+                      <span className={`text-[10px] ${circularEdges.has(`${e.from}->${e.to}`) ? 'text-rose-400 font-semibold' : 'text-zinc-500'}`}>
+                        {circularEdges.has(`${e.from}->${e.to}`) ? 'CYCLE ⚠' : e.label}
+                      </span>
                     </div>
                   ))
                 )}
@@ -383,7 +422,7 @@ export function CodeGraph({ graphData }) {
             <div>
               <span className="text-zinc-400 font-semibold flex items-center gap-1 mb-1.5">
                 <ArrowDownLeft size={13} className="text-emerald-400" />
-                Dependents (Inward)
+                Callers / Fan-In ({edges.filter(e => e.to === selectedNode.id).length})
               </span>
               <div className="space-y-1 font-mono text-[11px]">
                 {edges.filter(e => e.to === selectedNode.id).length === 0 ? (
@@ -391,13 +430,24 @@ export function CodeGraph({ graphData }) {
                 ) : (
                   edges.filter(e => e.to === selectedNode.id).map((e, idx) => (
                     <div key={idx} className="p-1.5 rounded bg-zinc-950 border border-zinc-800 flex items-center justify-between">
-                      <span className="text-zinc-300 truncate">{getNodeById(e.from)?.label}</span>
-                      <span className="text-[10px] text-zinc-500">{e.label}</span>
+                      <span className="text-zinc-300 truncate">{getNodeById(e.from)?.label || e.from}</span>
+                      <span className={`text-[10px] ${circularEdges.has(`${e.from}->${e.to}`) ? 'text-rose-400 font-semibold' : 'text-zinc-500'}`}>
+                        {circularEdges.has(`${e.from}->${e.to}`) ? 'CYCLE ⚠' : e.label}
+                      </span>
                     </div>
                   ))
                 )}
               </div>
             </div>
+
+            {/* Navigate to Code Viewer Button */}
+            <button
+              onClick={() => navigate('/code', { state: { file: selectedNode.id } })}
+              className="w-full mt-2 py-2 px-3 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-800/80 text-cyan-300 font-mono text-xs flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <span>Inspect Source Code</span>
+              <ArrowRight size={13} />
+            </button>
           </div>
         </div>
       )}

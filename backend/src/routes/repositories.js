@@ -341,3 +341,66 @@ repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/graph', requireAuth,
     next(err);
   }
 });
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis/metrics
+ * Retrieves paginated, filterable file and function metrics
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/metrics', requireAuth, async (req, res, next) => {
+  try {
+    const { snapshotId } = req.params;
+    const { entityType, sortBy, sortDir, limit, offset, filePath } = req.query;
+
+    const metricsData = await codeIntelligenceService.getAnalysisMetrics(snapshotId, req.user.id, {
+      entityType,
+      sortBy,
+      sortDir,
+      limit: limit ? parseInt(limit, 10) : 100,
+      offset: offset ? parseInt(offset, 10) : 0,
+      filePath
+    });
+
+    return res.status(200).json(metricsData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis/smells
+ * Retrieves paginated, filterable code smell findings
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/smells', requireAuth, async (req, res, next) => {
+  try {
+    const { snapshotId } = req.params;
+    const { ruleId, severity, filePath, limit, offset } = req.query;
+
+    const smellsData = await codeIntelligenceService.getAnalysisCodeSmells(snapshotId, req.user.id, {
+      ruleId,
+      severity,
+      filePath,
+      limit: limit ? parseInt(limit, 10) : 50,
+      offset: offset ? parseInt(offset, 10) : 0
+    });
+
+    return res.status(200).json(smellsData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis/dependencies
+ * Retrieves parsed manifests and external package dependencies
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/dependencies', requireAuth, async (req, res, next) => {
+  try {
+    const { snapshotId } = req.params;
+    const depsData = await codeIntelligenceService.getAnalysisDependencies(snapshotId, req.user.id);
+
+    return res.status(200).json(depsData);
+  } catch (err) {
+    next(err);
+  }
+});
+

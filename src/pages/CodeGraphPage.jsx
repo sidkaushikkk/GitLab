@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { codeGraphService } from '../services/codeGraphService';
 import { useApp } from '../context/AppContext';
-import { Network, Info, Layers, RefreshCw } from 'lucide-react';
+import { Network, Info, Layers, RefreshCw, AlertTriangle } from 'lucide-react';
 import { CodeGraph } from '../components/graph/CodeGraph';
 
-export function CodeGraphPage({ headless = false }) {
+export function CodeGraphPage({ headless = false, repoId = null }) {
   const { currentRepo } = useApp();
+  const targetRepoId = repoId || currentRepo?.id;
   const [graphData, setGraphData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       setIsLoading(true);
-      const data = await codeGraphService.getGraphData();
+      const data = await codeGraphService.getGraphData(targetRepoId);
       setGraphData(data);
       setIsLoading(false);
     }
     load();
-  }, [currentRepo.id]);
+  }, [targetRepoId]);
+
+  // Compute circular dependency edges count
+  const cycleCount = (graphData?.edges || []).filter(e1 =>
+    (graphData?.edges || []).some(e2 => e2.from === e1.to && e2.to === e1.from)
+  ).length / 2;
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
@@ -25,10 +31,16 @@ export function CodeGraphPage({ headless = false }) {
       {!headless && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-800">
         <div>
-          <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
-            <Network size={20} className="text-cyan-400" />
-            Architecture & Code Graph
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
+              <Network size={20} className="text-cyan-400" />
+              Architecture & Code Graph
+            </h1>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950/70 text-cyan-300 border border-cyan-800/60 hidden sm:flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              AST Graph Topology
+            </span>
+          </div>
           <p className="text-xs text-zinc-400 mt-1 font-sans">
             Interactive topology map of modules, services, controllers, database pools, and external API gateways.
           </p>
@@ -36,11 +48,17 @@ export function CodeGraphPage({ headless = false }) {
 
         <div className="flex items-center gap-2 font-mono text-xs text-zinc-400">
           <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">
-            Nodes: <strong className="text-zinc-200">{graphData?.nodes.length || 10}</strong>
+            Modules: <strong className="text-zinc-200">{graphData?.nodes?.length || 10}</strong>
           </span>
           <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">
-            Edges: <strong className="text-cyan-400">{graphData?.edges.length || 14}</strong>
+            Imports: <strong className="text-cyan-400">{graphData?.edges?.length || 14}</strong>
           </span>
+          {cycleCount > 0 && (
+            <span className="px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800/60 text-rose-300 flex items-center gap-1.5">
+              <AlertTriangle size={12} className="text-rose-400" />
+              Cycles: <strong className="text-rose-200">{cycleCount}</strong>
+            </span>
+          )}
         </div>
       </div>
       )}

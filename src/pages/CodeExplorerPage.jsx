@@ -16,8 +16,9 @@ import { FileTree } from '../components/code/FileTree';
 import { CodeViewer } from '../components/code/CodeViewer';
 import { useLocation } from 'react-router-dom';
 
-export function CodeExplorerPage({ headless = false }) {
+export function CodeExplorerPage({ headless = false, repoId = null }) {
   const { currentRepo, toggleAiPanel } = useApp();
+  const targetRepoId = repoId || currentRepo?.id;
   const location = useLocation();
   const [fileTree, setFileTree] = useState([]);
   const [activeFilePath, setActiveFilePath] = useState('src/auth/AuthService.ts');
@@ -29,28 +30,33 @@ export function CodeExplorerPage({ headless = false }) {
   useEffect(() => {
     async function loadTree() {
       setIsLoading(true);
-      const tree = await codeService.getFileTree();
+      const tree = await codeService.getFileTree(targetRepoId);
       setFileTree(tree);
 
-      // Support citation navigation from AIChat: if location.state has a file path, open it
-      const targetFile = location.state?.file || activeFilePath;
-      const targetLine = location.state?.line || null;
+      // Support navigation from Overview, Code Health, Code Graph, or AIChat (via location.state or query params)
+      const searchParams = new URLSearchParams(location.search);
+      const queryFile = searchParams.get('file');
+      const queryLine = searchParams.get('line') ? parseInt(searchParams.get('line'), 10) : null;
+
+      // Find first file in tree if default does not exist
+      const firstFilePath = tree && tree.length > 0 ? (tree[0].type === 'file' ? tree[0].path : tree[0].children?.[0]?.path) : null;
+      const targetFile = location.state?.file || queryFile || (firstFilePath || activeFilePath);
+      const targetLine = location.state?.line || queryLine || null;
 
       setActiveFilePath(targetFile);
       setHighlightedLine(targetLine);
 
-      const content = await codeService.getFileContent(targetFile);
+      const content = await codeService.getFileContent(targetFile, targetRepoId);
       setFileContentData(content);
       setIsLoading(false);
     }
     loadTree();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentRepo.id]);
+  }, [targetRepoId, location.state, location.search]);
 
   const handleSelectFile = async (path) => {
     setActiveFilePath(path);
     setHighlightedLine(null);
-    const content = await codeService.getFileContent(path);
+    const content = await codeService.getFileContent(path, targetRepoId);
     setFileContentData(content);
   };
 

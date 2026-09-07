@@ -5,6 +5,7 @@ import { dispatchAndParseFile } from './dispatcher.js';
 import { extractRelationships } from './relationshipExtractor.js';
 import { detectCodeSmells } from './codeSmells.js';
 import { extractFeatures, FEATURE_SCHEMA_VERSION } from './featureExtractor.js';
+import { parseManifestFile } from './manifestParser.js';
 
 /**
  * Service orchestrating AST code intelligence analysis and ML-ready feature extraction
@@ -327,6 +328,13 @@ export const codeIntelligenceService = {
       completedAt: row.completed_at,
       createdAt: row.created_at,
       codeSmells: smellRows,
+      summary: {
+        filesAnalyzed: row.total_files_analyzed,
+        filesFailed: row.total_files_failed,
+        symbols: row.total_symbols,
+        relationships: row.total_relationships,
+        smells: row.total_smells
+      },
       ...extra
     };
   },
@@ -378,18 +386,33 @@ export const codeIntelligenceService = {
    * Retrieves dependency and call graph nodes and edges
    */
   async getAnalysisGraph(snapshotId, userId) {
+    // 1. Verify snapshot and user access
+    const { rows: runRows } = await pool.query(`
+      SELECT a.id as run_id, a.repository_id
+      FROM analysis_runs a
+      JOIN repositories r ON a.repository_id = r.id
+      WHERE a.snapshot_id = $1 AND r.user_id = $2 AND a.status = 'completed'
+      ORDER BY a.created_at DESC LIMIT 1
+    `, [snapshotId, userId]);
+
+    if (runRows.length === 0) {
+      const err = new Error('Completed analysis not found for this snapshot.');
+      err.status = 404;
+      throw err;
+    }
+
+    const runId = runRows[0].run_id;
+
     const query = `
       SELECT r.source_file_path, r.target_file_path, r.relationship_type, r.symbols_imported,
              s1.name as source_symbol_name, s2.name as target_symbol_name
       FROM relationships r
-      JOIN analysis_runs a ON r.analysis_run_id = a.id
-      JOIN repositories repo ON a.repository_id = repo.id
       LEFT JOIN symbols s1 ON r.source_symbol_id = s1.id
       LEFT JOIN symbols s2 ON r.target_symbol_id = s2.id
-      WHERE a.snapshot_id = $1 AND repo.user_id = $2 AND a.status = 'completed'
+      WHERE r.analysis_run_id = $1
     `;
 
-    const { rows } = await pool.query(query, [snapshotId, userId]);
+    const { rows } = await pool.query(query, [runId]);
 
     // Build unique nodes and edges
     const nodeSet = new Set();
@@ -412,7 +435,293 @@ export const codeIntelligenceService = {
     return {
       snapshotId,
       nodes: Array.from(nodeSet).map(id => ({ id, label: id })),
-      edges
+      edges,
+      relationships: edges
+    };
+  },
+
+  /**
+   * Retrieves paginated, filterable metrics for functions and files
+   */
+  async getAnalysisMetrics(snapshotId, userId, { entityType, sortBy = 'complexity', sortDir = 'desc', limit = 100, offset = 0, filePath } = {}) {
+    // 1. Verify snapshot and user access
+    const { rows: runRows } = await pool.query(`
+      SELECT a.id as run_id, a.repository_id
+      FROM analysis_runs a
+      JOIN repositories r ON a.repository_id = r.id
+      WHERE a.snapshot_id = $1 AND r.user_id = $2 AND a.status = 'completed'
+      ORDER BY a.created_at DESC LIMIT 1
+    `, [snapshotId, userId]);
+
+    if (runRows.length === 0) {
+      const err = new Error('Completed analysis not found for this snapshot.');
+      err.status = 404;
+      throw err;
+    }
+
+    const runId = runRows[0].run_id;
+
+    // 2. Fetch metrics
+    let query = `
+      SELECT entity_type, entity_id, metric_name, metric_value
+      FROM metrics
+      WHERE analysis_run_id = $1
+    `;
+    const params = [runId];
+
+    if (entityType) {
+      params.push(entityType);
+      query += ` AND entity_type = $${params.length}`;
+    }
+
+    if (filePath) {
+      params.push(`%${filePath}%`);
+      query += ` AND entity_id LIKE $${params.length}`;
+    }
+
+    query += ` ORDER BY entity_type, entity_id`;
+
+    const { rows } = await pool.query(query, params);
+
+    // Group metrics by entity
+    const entityMap = new Map();
+    for (const r of rows) {
+      if (!entityMap.has(r.entity_id)) {
+        entityMap.set(r.entity_id, {
+          entityType: r.entity_type,
+          entityId: r.entity_id,
+          metrics: {}
+        });
+      }
+      entityMap.get(r.entity_id).metrics[r.metric_name] = r.metric_value;
+    }
+
+    // Convert to flat list with enriched properties
+    let items = Array.from(entityMap.values()).map(item => {
+      const m = item.metrics;
+      const complexity = m.cyclomaticComplexity || m.avg_complexity || 1;
+      const nesting = m.maxNestingDepth || m.max_nesting_depth || 0;
+      const lines = m.lines || m.physicalLines || 1;
+      const branchCount = m.branchCount || 0;
+      const callCount = m.callCount || 0;
+      const fanIn = m.fan_in || 0;
+      const fanOut = m.fan_out || 0;
+      const smellsCount = m.code_smell_count || 0;
+      const hasTest = m.has_test || 0;
+
+      // Deterministic Technical Debt Score:
+      // Complexity * 2 + Nesting * 3 + Smells * 5 - (hasTest * 5)
+      const debtScore = Math.max(0, Math.round((complexity * 2) + (nesting * 3) + (smellsCount * 5) - (hasTest * 5)));
+
+      return {
+        entityType: item.entityType,
+        entityId: item.entityId,
+        lines,
+        complexity,
+        maxNestingDepth: nesting,
+        branchCount,
+        callCount,
+        fanIn,
+        fanOut,
+        codeSmellCount: smellsCount,
+        hasTest,
+        debtScore,
+        rawMetrics: m
+      };
+    });
+
+    // Sort items
+    const dir = String(sortDir).toLowerCase() === 'asc' ? 1 : -1;
+    items.sort((a, b) => {
+      let valA = a[sortBy] ?? a.rawMetrics?.[sortBy] ?? 0;
+      let valB = b[sortBy] ?? b.rawMetrics?.[sortBy] ?? 0;
+      return (valA - valB) * dir;
+    });
+
+    // Compute aggregate stats across items
+    let totalFiles = 0;
+    let totalFunctions = 0;
+    let totalLines = 0;
+    let sumComplexity = 0;
+    let maxComplexity = 0;
+    let totalDebtScore = 0;
+
+    for (const item of items) {
+      if (item.entityType === 'file') {
+        totalFiles++;
+        totalLines += Number(item.lines || 0);
+      } else if (item.entityType === 'function') {
+        totalFunctions++;
+      }
+      const c = Number(item.complexity || 0);
+      sumComplexity += c;
+      if (c > maxComplexity) {
+        maxComplexity = c;
+      }
+      totalDebtScore += Number(item.debtScore || 0);
+    }
+
+    if (entityType === 'file' && totalFiles === 0 && items.length > 0) {
+      totalFiles = items.length;
+    } else if (entityType === 'function' && totalFunctions === 0 && items.length > 0) {
+      totalFunctions = items.length;
+    }
+
+    const stats = {
+      totalFiles: totalFiles || runRows[0].total_files_analyzed || items.length,
+      totalFunctions: totalFunctions || runRows[0].total_symbols || 0,
+      totalLines,
+      avgComplexity: items.length > 0 ? Number((sumComplexity / items.length).toFixed(1)) : 0,
+      maxComplexity,
+      technicalDebtScore: totalDebtScore
+    };
+
+    const total = items.length;
+    const paginated = items.slice(offset, offset + limit);
+
+    return {
+      snapshotId,
+      total,
+      limit,
+      offset,
+      stats,
+      metrics: paginated
+    };
+  },
+
+  /**
+   * Retrieves paginated, filterable code smells for a snapshot
+   */
+  async getAnalysisCodeSmells(snapshotId, userId, { ruleId, severity, filePath, limit = 50, offset = 0 } = {}) {
+    const { rows: runRows } = await pool.query(`
+      SELECT a.id as run_id
+      FROM analysis_runs a
+      JOIN repositories r ON a.repository_id = r.id
+      WHERE a.snapshot_id = $1 AND r.user_id = $2 AND a.status = 'completed'
+      ORDER BY a.created_at DESC LIMIT 1
+    `, [snapshotId, userId]);
+
+    if (runRows.length === 0) {
+      const err = new Error('Completed analysis not found for this snapshot.');
+      err.status = 404;
+      throw err;
+    }
+
+    const runId = runRows[0].run_id;
+
+    let query = `
+      SELECT id, rule_id, severity, file_path, symbol_name, line, measured_value, threshold, message, created_at
+      FROM code_smells
+      WHERE analysis_run_id = $1
+    `;
+    const params = [runId];
+
+    if (ruleId) {
+      params.push(ruleId);
+      query += ` AND rule_id = $${params.length}`;
+    }
+
+    if (severity) {
+      params.push(severity);
+      query += ` AND severity = $${params.length}`;
+    }
+
+    if (filePath) {
+      params.push(`%${filePath}%`);
+      query += ` AND file_path LIKE $${params.length}`;
+    }
+
+    // Get total count
+    const countQuery = `SELECT count(*) FROM (${query}) as filtered`;
+    const { rows: countRows } = await pool.query(countQuery, params);
+    const total = parseInt(countRows[0].count, 10);
+
+    query += ` ORDER BY line ASC, created_at ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+
+    const { rows } = await pool.query(query, params);
+
+    return {
+      snapshotId,
+      total,
+      limit,
+      offset,
+      smells: rows.map(r => ({
+        id: r.id,
+        ruleId: r.rule_id,
+        severity: r.severity,
+        filePath: r.file_path,
+        symbolName: r.symbol_name,
+        line: r.line,
+        measuredValue: r.measured_value,
+        threshold: r.threshold,
+        message: r.message,
+        createdAt: r.created_at
+      }))
+    };
+  },
+
+  /**
+   * Retrieves parsed manifests and external package dependencies for a snapshot
+   */
+  async getAnalysisDependencies(snapshotId, userId, { storageProvider = defaultStorageProvider } = {}) {
+    const { rows: runRows } = await pool.query(`
+      SELECT a.id as run_id, a.repository_id
+      FROM analysis_runs a
+      JOIN repositories r ON a.repository_id = r.id
+      WHERE a.snapshot_id = $1 AND r.user_id = $2 AND a.status = 'completed'
+      ORDER BY a.created_at DESC LIMIT 1
+    `, [snapshotId, userId]);
+
+    if (runRows.length === 0) {
+      const err = new Error('Completed analysis not found for this snapshot.');
+      err.status = 404;
+      throw err;
+    }
+
+    const snapshotPayload = await storageProvider.getSnapshot(snapshotId);
+    const files = Array.isArray(snapshotPayload.files) ? snapshotPayload.files : [];
+
+    const manifests = [];
+    const allDependencies = [];
+
+    for (const file of files) {
+      const parsed = parseManifestFile(file);
+      if (parsed) {
+        manifests.push({
+          manifestPath: parsed.manifestPath,
+          ecosystem: parsed.ecosystem,
+          packageName: parsed.packageName || null,
+          version: parsed.version || null,
+          license: parsed.license || null,
+          dependenciesCount: parsed.dependenciesCount
+        });
+
+        if (Array.isArray(parsed.dependencies)) {
+          allDependencies.push(...parsed.dependencies);
+        }
+      }
+    }
+
+    // Also get module-level import relationships from database
+    const { rows: importRels } = await pool.query(`
+      SELECT source_file_path, target_file_path, symbols_imported
+      FROM relationships
+      WHERE analysis_run_id = $1 AND relationship_type = 'IMPORTS'
+    `, [runRows[0].run_id]);
+
+    return {
+      snapshotId,
+      manifestsCount: manifests.length,
+      totalDependencies: allDependencies.length,
+      manifests,
+      dependencies: allDependencies,
+      internalImportsCount: importRels.length,
+      internalImports: importRels.map(r => ({
+        sourceFilePath: r.source_file_path,
+        targetFilePath: r.target_file_path,
+        symbolsImported: r.symbols_imported
+      }))
     };
   }
 };

@@ -100,13 +100,13 @@ export function RepositoryDetailPage() {
 
       {/* Tab Contents */}
       <div className="mt-4">
-        {activeTab === 'overview' && <OverviewPage headless />}
-        {activeTab === 'code' && <CodeExplorerPage headless />}
-        {activeTab === 'security' && <SecurityPage headless />}
-        {activeTab === 'dependencies' && <DependenciesPage headless />}
-        {activeTab === 'apis' && <ApiReliabilityPage headless />}
-        {activeTab === 'pulls' && <PullRequestsPage headless />}
-        {activeTab === 'architecture' && <CodeGraphPage headless />}
+        {activeTab === 'overview' && <OverviewPage headless repoId={id} />}
+        {activeTab === 'code' && <CodeExplorerPage headless repoId={id} />}
+        {activeTab === 'security' && <SecurityPage headless repoId={id} />}
+        {activeTab === 'dependencies' && <DependenciesPage headless repoId={id} />}
+        {activeTab === 'apis' && <ApiReliabilityPage headless repoId={id} />}
+        {activeTab === 'pulls' && <PullRequestsPage headless repoId={id} />}
+        {activeTab === 'architecture' && <CodeGraphPage headless repoId={id} />}
       </div>
     </div>
   );

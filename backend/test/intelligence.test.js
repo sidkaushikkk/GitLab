@@ -12,6 +12,7 @@ import { parseJava } from '../src/services/intelligence/parsers/javaParser.js';
 import { extractRelationships } from '../src/services/intelligence/relationshipExtractor.js';
 import { detectCodeSmells } from '../src/services/intelligence/codeSmells.js';
 import { extractFeatures, FEATURE_SCHEMA_VERSION } from '../src/services/intelligence/featureExtractor.js';
+import { parseManifestFile, parsePackageJson, parseRequirementsTxt, parseJavaManifest } from '../src/services/intelligence/manifestParser.js';
 import { defaultStorageProvider } from '../src/services/ingestion/storage/LocalStorageProvider.js';
 import { app } from '../src/app.js';
 
@@ -539,13 +540,132 @@ public class PaymentService extends BaseService implements IPayment {
 
     console.log('✓ Test 11 Passed: Parser failure in single file was gracefully isolated without crashing repository analysis.');
 
+    // ------------------------------------------------------------------------
+    // Test 12: Deterministic Manifest Parser Unit Tests (npm, PyPI, Maven)
+    // ------------------------------------------------------------------------
+    console.log('[Test 12] Testing deterministic manifest parsers (package.json, requirements.txt, pom.xml)...');
+
+    const pkgJsonContent = JSON.stringify({
+      name: 'payment-service',
+      version: '1.2.0',
+      license: 'MIT',
+      dependencies: {
+        'express': '^4.21.2',
+        'pg': '^8.13.3'
+      },
+      devDependencies: {
+        'vite': '^6.2.0'
+      }
+    });
+
+    const parsedPkg = parseManifestFile({ path: 'package.json', content: pkgJsonContent });
+    assert.equal(parsedPkg.ecosystem, 'npm');
+    assert.equal(parsedPkg.dependenciesCount, 3);
+    assert.equal(parsedPkg.dependencies[0].name, 'express');
+    assert.equal(parsedPkg.dependencies[0].type, 'direct');
+    assert.equal(parsedPkg.dependencies[2].type, 'development');
+
+    const reqTxtContent = `
+# Core dependencies
+requests>=2.28.0
+flask==2.3.2
+numpy
+`;
+    const parsedReqs = parseManifestFile({ path: 'requirements.txt', content: reqTxtContent });
+    assert.equal(parsedReqs.ecosystem, 'pypi');
+    assert.equal(parsedReqs.dependenciesCount, 3);
+    assert.equal(parsedReqs.dependencies[0].name, 'requests');
+
+    const pomXmlContent = `
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>31.1-jre</version>
+    </dependency>
+  </dependencies>
+</project>
+`;
+    const parsedPom = parseManifestFile({ path: 'pom.xml', content: pomXmlContent });
+    assert.equal(parsedPom.ecosystem, 'maven');
+    assert.equal(parsedPom.dependenciesCount, 1);
+    assert.equal(parsedPom.dependencies[0].name, 'com.google.guava:guava');
+
+    console.log('✓ Test 12 Passed: Multi-ecosystem package manifests parsed deterministically.');
+
+    // ------------------------------------------------------------------------
+    // Test 13: GET /analysis/metrics API (Sorting, Entity Types, Technical Debt)
+    // ------------------------------------------------------------------------
+    console.log('[Test 13] Testing GET /api/repositories/:id/snapshots/:snapshotId/analysis/metrics...');
+
+    const resGetMetrics = await fetch(`${baseUrl}/api/repositories/${repoA.id}/snapshots/${snapshotA.id}/analysis/metrics?sortBy=complexity&sortDir=desc`, {
+      headers: { 'Cookie': `session_id=${tokenA}` }
+    });
+    assert.equal(resGetMetrics.status, 200);
+    const bodyMetrics = await resGetMetrics.json();
+    assert.ok(bodyMetrics.total > 0);
+    assert.ok(Array.isArray(bodyMetrics.metrics));
+    assert.ok(bodyMetrics.metrics[0].complexity >= bodyMetrics.metrics[bodyMetrics.metrics.length - 1].complexity);
+
+    // Verify function metrics filter
+    const resGetFnMetrics = await fetch(`${baseUrl}/api/repositories/${repoA.id}/snapshots/${snapshotA.id}/analysis/metrics?entityType=function`, {
+      headers: { 'Cookie': `session_id=${tokenA}` }
+    });
+    assert.equal(resGetFnMetrics.status, 200);
+    const bodyFnMetrics = await resGetFnMetrics.json();
+    assert.ok(bodyFnMetrics.metrics.every(m => m.entityType === 'function'));
+    assert.ok(typeof bodyFnMetrics.metrics[0].debtScore === 'number');
+
+    console.log('✓ Test 13 Passed: Metrics API supports pagination, entity filtering, and deterministic debt scores.');
+
+    // ------------------------------------------------------------------------
+    // Test 14: GET /analysis/smells API (Severity & Rule Filtering)
+    // ------------------------------------------------------------------------
+    console.log('[Test 14] Testing GET /api/repositories/:id/snapshots/:snapshotId/analysis/smells...');
+
+    const resGetSmells = await fetch(`${baseUrl}/api/repositories/${repoA.id}/snapshots/${snapshotA.id}/analysis/smells`, {
+      headers: { 'Cookie': `session_id=${tokenA}` }
+    });
+    assert.equal(resGetSmells.status, 200);
+    const bodySmells = await resGetSmells.json();
+    assert.ok(bodySmells.total >= 1);
+    assert.ok(Array.isArray(bodySmells.smells));
+    assert.ok(bodySmells.smells.some(s => s.ruleId === 'DEEP_NESTING' || s.ruleId === 'HIGH_COMPLEXITY'));
+
+    console.log('✓ Test 14 Passed: Code smells API returns granular diagnostics with line numbers and measured values.');
+
+    // ------------------------------------------------------------------------
+    // Test 15: GET /analysis/dependencies API (Manifest & Dependency Inventory)
+    // ------------------------------------------------------------------------
+    console.log('[Test 15] Testing GET /api/repositories/:id/snapshots/:snapshotId/analysis/dependencies...');
+
+    // Add package.json to snapshotA payload
+    snapshotPayload.files.push({
+      path: 'package.json',
+      language: 'json',
+      content: pkgJsonContent
+    });
+    await defaultStorageProvider.saveSnapshot(snapshotA.id, snapshotPayload);
+
+    const resGetDeps = await fetch(`${baseUrl}/api/repositories/${repoA.id}/snapshots/${snapshotA.id}/analysis/dependencies`, {
+      headers: { 'Cookie': `session_id=${tokenA}` }
+    });
+    assert.equal(resGetDeps.status, 200);
+    const bodyDeps = await resGetDeps.json();
+    assert.equal(bodyDeps.manifestsCount, 1);
+    assert.equal(bodyDeps.totalDependencies, 3);
+    assert.equal(bodyDeps.dependencies[0].name, 'express');
+
+    console.log('✓ Test 15 Passed: Dependency inventory endpoint accurately surfaces direct and dev dependencies.');
+
     // Cleanup
     await defaultStorageProvider.deleteSnapshot(snapshotA.id);
     await defaultStorageProvider.deleteSnapshot(snapshotBad.id);
     await pool.query('DELETE FROM users WHERE id IN ($1, $2)', [userA.id, userB.id]);
 
     console.log('\n======================================================');
-    console.log('ALL CHECKPOINT 6 CODE INTELLIGENCE TESTS PASSED! (11/11)');
+    console.log('ALL PHASE 1 CODE INTELLIGENCE TESTS PASSED! (15/15)');
     console.log('======================================================\n');
   } finally {
     await stopServer();

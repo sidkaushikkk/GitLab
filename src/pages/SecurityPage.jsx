@@ -28,8 +28,9 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 
-export function SecurityPage({ headless = false }) {
+export function SecurityPage({ headless = false, repoId = null }) {
   const { currentRepo } = useApp();
+  const targetRepoId = repoId || currentRepo?.id;
   const [findings, setFindings] = useState([]);
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState('');
@@ -46,18 +47,19 @@ export function SecurityPage({ headless = false }) {
         securityService.getFindings({
           search,
           severity: severityFilter,
-          status: statusFilter
+          status: statusFilter,
+          repoId: targetRepoId
         }),
-        securityService.getScoreHistory()
+        securityService.getScoreHistory(targetRepoId)
       ]);
       setFindings(findingsList);
       setHistory(scoreHistory);
       setIsLoading(false);
     }
     load();
-  }, [search, severityFilter, statusFilter, currentRepo.id]);
+  }, [search, severityFilter, statusFilter, targetRepoId]);
 
-  const risk = currentRepo.riskSummary;
+  const risk = currentRepo?.riskSummary || { critical: 0, high: 0, medium: 0, low: 0 };
 
   const columns = [
     {
@@ -138,7 +140,7 @@ export function SecurityPage({ headless = false }) {
 
         <div className="flex items-center gap-2 font-mono text-xs">
           <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
-            Security Score: <strong className="text-emerald-400">{currentRepo.metrics.securityScore}/100</strong>
+            Security Score: <strong className="text-emerald-400">{currentRepo?.metrics?.securityScore ?? 85}/100</strong>
           </span>
         </div>
       </div>

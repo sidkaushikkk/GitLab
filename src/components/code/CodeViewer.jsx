@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
-import { Copy, Check, FileCode, ShieldAlert, AlertTriangle, Info, Terminal } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Copy, Check, FileCode, ShieldAlert, AlertTriangle, Info, Terminal, Activity } from 'lucide-react';
 
 export function CodeViewer({ fileData, onLineClick, highlightedLine }) {
   const [copied, setCopied] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
+  const lineRefs = useRef({});
+
+  useEffect(() => {
+    if (highlightedLine && lineRefs.current[highlightedLine]) {
+      lineRefs.current[highlightedLine].scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, [highlightedLine, fileData?.path]);
 
   if (!fileData) return null;
 
@@ -26,7 +36,7 @@ export function CodeViewer({ fileData, onLineClick, highlightedLine }) {
       <div className="flex items-center justify-between px-3.5 py-2 bg-zinc-900/90 border-b border-zinc-800 text-xs">
         <div className="flex items-center gap-2 font-mono text-zinc-300 truncate">
           <FileCode size={14} className="text-cyan-400 shrink-0" />
-          <span className="truncate">{fileData.path}</span>
+          <span className="truncate font-semibold">{fileData.path}</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 uppercase">
             {fileData.language || 'typescript'}
           </span>
@@ -36,6 +46,21 @@ export function CodeViewer({ fileData, onLineClick, highlightedLine }) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* In-situ AST File Metrics Header Badge */}
+          {fileData.metrics && (
+            <div className="hidden lg:flex items-center gap-2 font-mono text-[11px] px-2 py-0.5 rounded bg-zinc-850 border border-zinc-750 text-zinc-300">
+              <span>Complexity: <strong className="text-cyan-300">{fileData.metrics.complexity ?? 1}</strong></span>
+              <span className="text-zinc-600">•</span>
+              <span>Nesting: <strong className="text-amber-300">{fileData.metrics.maxNestingDepth ?? 0}</strong></span>
+              {fileData.metrics.debtScore !== undefined && (
+                <>
+                  <span className="text-zinc-600">•</span>
+                  <span>Debt: <strong className="text-rose-300">{fileData.metrics.debtScore} pts</strong></span>
+                </>
+              )}
+            </div>
+          )}
+
           {issues.length > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-800/60">
               <ShieldAlert size={12} />
@@ -74,6 +99,7 @@ export function CodeViewer({ fileData, onLineClick, highlightedLine }) {
               return (
                 <React.Fragment key={lineNum}>
                   <div
+                    ref={el => { lineRefs.current[lineNum] = el; }}
                     onClick={() => onLineClick && onLineClick(lineNum)}
                     className={`flex items-start group hover:bg-zinc-900/60 transition-colors ${
                       isHighlighted ? 'bg-cyan-950/40 border-l-2 border-cyan-400' : ''
