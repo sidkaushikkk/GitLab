@@ -34,7 +34,7 @@ export function ConnectPage() {
   const [githubRepos, setGithubRepos] = useState([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [searchRepo, setSearchRepo] = useState('');
-  const [selectedRepoName, setSelectedRepoName] = useState('payment-service');
+  const [selectedRepoName, setSelectedRepoName] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('main');
 
   // Synchronize wizard step when auth finishes loading
@@ -72,13 +72,13 @@ export function ConnectPage() {
   }, []);
 
   const pipelineStages = [
-    { name: 'Repository connected', log: `Connecting repository ${selectedRepoName} to GitLab Intelligence...` },
-    { name: 'Files indexed', log: 'Discovered 284 source files (42,850 total lines of code)...' },
-    { name: 'Dependencies mapped', log: 'Resolved package tree: 92 modules from package-lock.json...' },
-    { name: 'AST analysis complete', log: 'Parsed Babel & TypeScript AST trees; mapped 1,420 function nodes...' },
-    { name: 'Running security analysis', log: 'Executing Semgrep & CVE security rule engine: 1 critical finding detected...' },
-    { name: 'API analysis', log: 'Detecting Express route registrations & Stripe webhook dispatch points...' },
-    { name: 'AI codebase indexing', log: 'Vectorizing semantic symbols & architecture graph embeddings...' }
+    { name: 'Repository connected', log: `Connecting repository ${selectedRepoName || 'repository'} to GitLab Intelligence...` },
+    { name: 'Files indexed', log: 'Discovering source files and directory structure...' },
+    { name: 'Dependencies mapped', log: 'Parsing package manifests and external libraries...' },
+    { name: 'AST analysis complete', log: 'Parsing Abstract Syntax Trees and control flow...' },
+    { name: 'Running security analysis', log: 'Evaluating static code maintainability and anti-pattern rules...' },
+    { name: 'Module relationship extraction', log: 'Tracing internal module imports and call topology...' },
+    { name: 'Indexing complete', log: 'Finalizing repository snapshot and registering metrics.' }
   ];
 
   useEffect(() => {
@@ -155,8 +155,7 @@ export function ConnectPage() {
           setProgressPercent(100);
           setPipelineLogs((logs) => [
             ...logs,
-            '[00:10] Repository connection and initial metadata sync completed successfully.',
-            '[00:10] Repository health score synthesized: 82/100 (Grade A)'
+            '[00:10] Repository connection and initial metadata sync completed successfully.'
           ]);
           setTimeout(() => {
             setStep('complete');

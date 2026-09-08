@@ -1,4 +1,3 @@
-import { mockSecurityFindings, mockSecurityScoreHistory } from '../data/securityData';
 import { getLatestSnapshotForRepo } from './snapshotHelper';
 
 function getActiveRepoId(repoId) {
@@ -68,32 +67,15 @@ export const securityService = {
       }
     }
 
-    await new Promise(resolve => setTimeout(resolve, 70));
-    let findings = [...mockSecurityFindings];
-    if (filter.search) {
-      const q = filter.search.toLowerCase();
-      findings = findings.filter(f => 
-        f.title.toLowerCase().includes(q) ||
-        f.category.toLowerCase().includes(q) ||
-        f.file.toLowerCase().includes(q)
-      );
-    }
-    if (filter.severity && filter.severity !== 'ALL') {
-      findings = findings.filter(f => f.severity === filter.severity);
-    }
-    if (filter.status && filter.status !== 'ALL') {
-      findings = findings.filter(f => f.status === filter.status);
-    }
-    return findings;
+    return [];
   },
 
   async getFindingById(id, repoId = null) {
     const findings = await this.getFindings({ repoId });
-    return findings.find(f => f.id === id) || mockSecurityFindings.find(f => f.id === id) || null;
+    return findings.find(f => f.id === id) || null;
   },
 
   async getScoreHistory(repoId = null) {
-    await new Promise(resolve => setTimeout(resolve, 50));
-    return mockSecurityScoreHistory;
+    return null;
   }
 };

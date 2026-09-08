@@ -30,9 +30,9 @@ export function Sidebar({ isMobileOpen, onMobileClose }) {
   const navItems = [
     { label: 'Overview', to: '/', icon: LayoutDashboard },
     { label: 'Repositories', to: '/repositories', icon: FolderGit2 },
-    { label: 'Pull Requests', to: '/pulls', icon: GitPullRequest, badge: currentRepo?.openPrsCount },
+    { label: 'Pull Requests', to: '/pulls', icon: GitPullRequest },
     { label: 'Code Health', to: '/code-health', icon: Activity },
-    { label: 'Security', to: '/security', icon: ShieldAlert, alertBadge: (currentRepo?.riskSummary?.critical ?? 0) > 0 },
+    { label: 'Security', to: '/security', icon: ShieldAlert },
     { label: 'API Reliability', to: '/api-reliability', icon: Zap },
     { label: 'Dependencies', to: '/dependencies', icon: Boxes },
     { label: 'Code Graph', to: '/code-graph', icon: Network },
@@ -115,8 +115,8 @@ export function Sidebar({ isMobileOpen, onMobileClose }) {
         {!isCollapsed && currentRepo && (
           <div className="p-2.5 rounded-md bg-zinc-900/60 border border-zinc-800 text-xs">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Active Analysis</span>
-              <span className="text-[10px] font-mono text-emerald-400 font-semibold">{currentRepo.metrics.healthScore}/100</span>
+              <span className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Active Repository</span>
+              <span className="text-[10px] font-mono text-cyan-400 font-semibold">{currentRepo.language || 'Connected'}</span>
             </div>
             <div className="flex items-center gap-1.5 font-mono text-zinc-200 font-medium truncate">
               <Database size={13} className="text-zinc-500 shrink-0" />

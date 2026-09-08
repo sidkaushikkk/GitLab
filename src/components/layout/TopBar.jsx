@@ -39,26 +39,7 @@ export function TopBar({ onMobileMenuToggle }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
-  const notifications = [
-    {
-      id: 1,
-      title: 'Critical security alert in payment-service',
-      desc: 'Hardcoded secret detected in database/connection.ts',
-      time: '12m ago',
-      icon: ShieldAlert,
-      color: 'text-rose-400',
-      link: '/security'
-    },
-    {
-      id: 2,
-      title: 'PR #142 Risk Analysis ready',
-      desc: 'Race condition flagged in session.ts',
-      time: '24m ago',
-      icon: GitPullRequest,
-      color: 'text-amber-400',
-      link: '/pulls/PR-142'
-    }
-  ];
+  const notifications = [];
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/90 px-4 backdrop-blur-md">
@@ -207,34 +188,44 @@ export function TopBar({ onMobileMenuToggle }) {
             aria-label="Notifications"
           >
             <Bell size={16} />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-zinc-950" />
+            {notifications.length > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-zinc-950" />
+            )}
           </button>
 
           {isNotificationsOpen && (
             <div className="absolute right-0 mt-1.5 w-72 sm:w-80 rounded-lg border border-zinc-800 bg-zinc-900 p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
               <div className="flex items-center justify-between pb-2 mb-1 border-b border-zinc-800 px-2">
                 <span className="text-xs font-semibold text-zinc-200">Notifications</span>
-                <span className="text-[10px] font-mono text-zinc-500">2 unread</span>
+                <span className="text-[10px] font-mono text-zinc-500">
+                  {notifications.length > 0 ? `${notifications.length} unread` : 'All caught up'}
+                </span>
               </div>
               <div className="space-y-1">
-                {notifications.map((n) => {
-                  const Icon = n.icon;
-                  return (
-                    <Link
-                      key={n.id}
-                      to={n.link}
-                      onClick={() => setIsNotificationsOpen(false)}
-                      className="flex items-start gap-2.5 p-2 rounded-md hover:bg-zinc-850 transition-colors text-left"
-                    >
-                      <Icon size={16} className={`${n.color} shrink-0 mt-0.5`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-zinc-200 truncate">{n.title}</div>
-                        <div className="text-[11px] text-zinc-400 truncate">{n.desc}</div>
-                        <div className="text-[10px] font-mono text-zinc-500 mt-0.5">{n.time}</div>
-                      </div>
-                    </Link>
-                  );
-                })}
+                {notifications.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-zinc-500 font-sans">
+                    No unread notifications
+                  </div>
+                ) : (
+                  notifications.map((n) => {
+                    const Icon = n.icon;
+                    return (
+                      <Link
+                        key={n.id}
+                        to={n.link}
+                        onClick={() => setIsNotificationsOpen(false)}
+                        className="flex items-start gap-2.5 p-2 rounded-md hover:bg-zinc-850 transition-colors text-left"
+                      >
+                        <Icon size={16} className={`${n.color} shrink-0 mt-0.5`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium text-zinc-200 truncate">{n.title}</div>
+                          <div className="text-[11px] text-zinc-400 truncate">{n.desc}</div>
+                          <div className="text-[10px] font-mono text-zinc-500 mt-0.5">{n.time}</div>
+                        </div>
+                      </Link>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}

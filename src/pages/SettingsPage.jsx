@@ -134,34 +134,42 @@ export function SettingsPage() {
       {/* Tab: Repository */}
       {activeTab === 'repository' && (
         <div className="p-6 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-5 text-xs font-mono">
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-            <div>
-              <div className="text-sm font-bold text-zinc-100">{currentRepo.name}</div>
-              <div className="text-zinc-400 font-sans mt-0.5">{currentRepo.description}</div>
+          {currentRepo ? (
+            <>
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                <div>
+                  <div className="text-sm font-bold text-zinc-100">{currentRepo.name}</div>
+                  <div className="text-zinc-400 font-sans mt-0.5">{currentRepo.description || 'No description provided'}</div>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+                  Active
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">DEFAULT BRANCH TO INDEX</label>
+                <input
+                  type="text"
+                  value={currentRepo.defaultBranch || 'main'}
+                  disabled
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-zinc-300 opacity-80"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">IGNORED PATHS (.gitignore rules)</label>
+                <textarea
+                  defaultValue={`node_modules/\ndist/\nbuild/\ncoverage/\n*.min.js`}
+                  rows={4}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-zinc-300 font-mono focus:outline-none"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="py-8 text-center text-zinc-500 font-sans">
+              No repository currently active. Connect or select a repository from the Repositories page.
             </div>
-            <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
-              Active
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-zinc-300 font-semibold mb-1">DEFAULT BRANCH TO INDEX</label>
-            <input
-              type="text"
-              value={currentRepo.defaultBranch}
-              disabled
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-zinc-300 opacity-80"
-            />
-          </div>
-
-          <div>
-            <label className="block text-zinc-300 font-semibold mb-1">IGNORED PATHS (.gitignore rules)</label>
-            <textarea
-              defaultValue={`node_modules/\ndist/\nbuild/\ncoverage/\n*.min.js`}
-              rows={4}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-zinc-300 font-mono focus:outline-none"
-            />
-          </div>
+          )}
         </div>
       )}
 

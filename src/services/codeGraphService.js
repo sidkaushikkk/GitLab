@@ -1,4 +1,3 @@
-import { mockCodeGraph } from '../data/codeGraphData';
 import { getLatestSnapshotForRepo } from './snapshotHelper';
 import { layoutLayered } from '../components/graph/graphLayout';
 
@@ -84,6 +83,6 @@ export const codeGraphService = {
       }
     }
 
-    return mockCodeGraph;
+    return { nodes: [], edges: [] };
   }
 };

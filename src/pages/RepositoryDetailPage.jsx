@@ -44,15 +44,29 @@ export function RepositoryDetailPage() {
     load();
   }, [id]);
 
-  if (!repo) return null;
+  if (!repo) {
+    return (
+      <div className="py-12">
+        <div className="p-12 text-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/50">
+          <FolderGit2 size={32} className="mx-auto text-zinc-600 mb-3" />
+          <h4 className="text-sm font-bold font-mono text-zinc-200 mb-1">
+            Repository not found
+          </h4>
+          <p className="text-xs text-zinc-400 max-w-md mx-auto font-sans leading-relaxed">
+            The requested repository does not exist or has not been connected to your account.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Layers },
     { id: 'code', label: 'Code', icon: Code2 },
-    { id: 'security', label: 'Security', icon: ShieldCheck, count: repo.riskSummary.critical + repo.riskSummary.high },
-    { id: 'dependencies', label: 'Dependencies', icon: Boxes, count: repo.metrics.dependenciesCount },
-    { id: 'apis', label: 'APIs', icon: Zap, count: repo.metrics.apisDetectedCount },
-    { id: 'pulls', label: 'Pull Requests', icon: GitPullRequest, count: repo.openPrsCount },
+    { id: 'security', label: 'Security', icon: ShieldCheck },
+    { id: 'dependencies', label: 'Dependencies', icon: Boxes },
+    { id: 'apis', label: 'APIs', icon: Zap },
+    { id: 'pulls', label: 'Pull Requests', icon: GitPullRequest },
     { id: 'architecture', label: 'Architecture', icon: Network }
   ];
 

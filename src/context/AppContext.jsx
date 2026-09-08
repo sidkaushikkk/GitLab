@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { mockRepositories } from '../data/repositoriesData';
 import { repositoryService } from '../services/repositoryService';
 import { useAuth } from './AuthContext';
 
@@ -8,8 +7,8 @@ const ACTIVE_REPO_STORAGE_KEY = 'gitlab_active_repo_id';
 
 export function AppProvider({ children }) {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const [repositories, setRepositories] = useState(mockRepositories);
-  const [currentRepo, setCurrentRepo] = useState(mockRepositories[0]);
+  const [repositories, setRepositories] = useState([]);
+  const [currentRepo, setCurrentRepo] = useState(null);
   const [currentBranch, setCurrentBranch] = useState('main');
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -26,9 +25,13 @@ export function AppProvider({ children }) {
         const found = (savedRepoId ? repos.find(r => r.id === savedRepoId || r.name === savedRepoId) : null) || repos[0];
         setCurrentRepo(found);
         setCurrentBranch(found.defaultBranch || 'main');
+      } else {
+        setRepositories([]);
+        setCurrentRepo(null);
       }
     } catch (err) {
-      // Fallback
+      setRepositories([]);
+      setCurrentRepo(null);
     }
   }, []);
 
@@ -38,9 +41,8 @@ export function AppProvider({ children }) {
       if (isAuthenticated) {
         refreshRepositories();
       } else {
-        setRepositories(mockRepositories);
-        setCurrentRepo(mockRepositories[0]);
-        setCurrentBranch(mockRepositories[0].defaultBranch || 'main');
+        setRepositories([]);
+        setCurrentRepo(null);
       }
     }
   }, [isAuthLoading, isAuthenticated, refreshRepositories]);
@@ -102,14 +104,35 @@ export function AppProvider({ children }) {
     setIsAiPanelOpen(prev => !prev);
   };
 
-  const triggerAnalyze = () => {
-    if (!currentRepo) return;
+  const triggerAnalyze = async () => {
+    if (!currentRepo) {
+      addToast('No active repository selected to analyze', 'warning');
+      return;
+    }
     setIsAnalyzing(true);
-    addToast(`Started full analysis on ${currentRepo.name} (${currentBranch})`, 'info');
-    setTimeout(() => {
+    addToast(`Running AST code intelligence scan on ${currentRepo.name}...`, 'info');
+
+    try {
+      const snapshots = await repositoryService.getSnapshots(currentRepo.id);
+      let targetSnap = snapshots?.[0];
+
+      if (!targetSnap) {
+        addToast('Ingesting new repository snapshot...', 'info');
+        targetSnap = await repositoryService.ingestRepository(currentRepo.id, currentBranch);
+      }
+
+      if (targetSnap) {
+        const result = await repositoryService.analyzeSnapshot(currentRepo.id, targetSnap.id, true);
+        addToast(`Scan complete: ${result.summary?.filesAnalyzed ?? 0} files analyzed, ${result.summary?.smells ?? 0} findings detected`, 'success');
+        refreshRepositories();
+      } else {
+        addToast('No snapshot available to analyze. Please ingest repository first.', 'warning');
+      }
+    } catch (err) {
+      addToast(`Analysis error: ${err.message}`, 'error');
+    } finally {
       setIsAnalyzing(false);
-      addToast(`Analysis complete: Health score updated to ${currentRepo.metrics?.healthScore || 82}/100`, 'success');
-    }, 3000);
+    }
   };
 
   return (

@@ -1,4 +1,3 @@
-import { mockHealthTrends, mockRiskHotspots, mockRecentActivities, mockComplexityDistribution, mockCodeHealthFiles } from '../data/metricsData';
 import { getLatestSnapshotForRepo } from './snapshotHelper';
 
 function getActiveRepoId(repoId) {
@@ -107,16 +106,16 @@ export const analysisService = {
   },
 
   /**
-   * Get health history trends for a repository
+   * Get health history trends for a repository (null: not implemented yet)
    */
-  async getHealthTrends(repoId = 'payment-service') {
-    return mockHealthTrends[repoId] || mockHealthTrends['payment-service'];
+  async getHealthTrends(repoId = null) {
+    return null;
   },
 
   /**
-   * Get risk hotspots from real analysis or fallback to mock
+   * Get risk hotspots from real analysis (no mock fallback)
    */
-  async getRiskHotspots(repoId = 'payment-service') {
+  async getRiskHotspots(repoId = null) {
     const targetRepoId = getActiveRepoId(repoId);
     if (targetRepoId) {
       const metricsData = await this.getCodeMetrics(targetRepoId, {
@@ -142,18 +141,18 @@ export const analysisService = {
       }
     }
 
-    return mockRiskHotspots[repoId] || mockRiskHotspots['payment-service'];
+    return [];
   },
 
   /**
-   * Get recent activities
+   * Get recent activities (null: not implemented yet)
    */
-  async getRecentActivities(repoId = 'payment-service') {
-    return mockRecentActivities[repoId] || mockRecentActivities['payment-service'];
+  async getRecentActivities(repoId = null) {
+    return null;
   },
 
   /**
-   * Get complexity distribution from real analysis or fallback to mock
+   * Get complexity distribution from real analysis (null if no analysis)
    */
   async getComplexityDistribution(repoId = null) {
     const targetRepoId = getActiveRepoId(repoId);
@@ -178,11 +177,11 @@ export const analysisService = {
       }
     }
 
-    return mockComplexityDistribution;
+    return null;
   },
 
   /**
-   * Get code health files table from real analysis or fallback to mock
+   * Get code health files table from real analysis
    */
   async getCodeHealthFiles(filter = {}, repoId = null) {
     const targetRepoId = getActiveRepoId(filter.repoId || repoId);
@@ -214,21 +213,13 @@ export const analysisService = {
             nesting,
             maintainability,
             issues: smells,
-            duplication: '0.0%',
+            duplication: null,
             testCoverage: hasTest ? 'Guarded' : 'No Tests',
             risk,
             debtScore: item.debtScore ?? Math.round((complexity * 2) + (nesting * 3) + (smells * 5) - (hasTest ? 5 : 0))
           };
         });
       }
-    }
-
-    if (files.length === 0) {
-      files = mockCodeHealthFiles.map((m, idx) => ({
-        ...m,
-        nesting: m.nesting ?? (m.complexity > 20 ? 4 : m.complexity > 10 ? 3 : 2),
-        debtScore: m.debtScore ?? Math.round((m.complexity * 2) + ((m.complexity > 20 ? 4 : 2) * 3) + ((m.issues || 0) * 5) - (parseInt(m.testCoverage, 10) > 50 ? 5 : 0))
-      }));
     }
 
     // Client-side filtering

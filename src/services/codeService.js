@@ -1,4 +1,3 @@
-import { mockFileTree, mockFileContents } from '../data/filesData';
 import { getLatestSnapshotForRepo, getSnapshotPayload } from './snapshotHelper';
 
 function getActiveRepoId(repoId) {
@@ -92,13 +91,14 @@ export const codeService = {
       }
     }
 
-    return mockFileTree;
+    return [];
   },
 
   /**
-   * Get file content and per-line diagnostics from backend snapshot or fallback to mock
+   * Get file content and per-line diagnostics from backend snapshot
    */
-  async getFileContent(filePath = 'src/auth/AuthService.ts', repoId = null) {
+  async getFileContent(filePath = null, repoId = null) {
+    if (!filePath) return null;
     const targetRepoId = getActiveRepoId(repoId);
     if (targetRepoId) {
       const snap = await getLatestSnapshotForRepo(targetRepoId);
@@ -160,17 +160,6 @@ export const codeService = {
       }
     }
 
-    // Fallback to mock contents if available
-    if (mockFileContents[filePath]) {
-      return mockFileContents[filePath];
-    }
-
-    return {
-      path: filePath,
-      language: filePath.endsWith('.json') ? 'json' : 'typescript',
-      linesCount: 22,
-      issues: [],
-      content: `// ${filePath}\n// Source file loaded from repository index\nexport function initializeModule() {\n  console.log('Module initialized: ${filePath}');\n  return true;\n}`
-    };
+    return null;
   }
 };

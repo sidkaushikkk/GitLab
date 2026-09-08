@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
-import { securityService } from '../services/securityService';
+import React, { useState, useEffect } from "react";
+import { useApp } from "../context/AppContext";
+import { securityService } from "../services/securityService";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -11,65 +11,77 @@ import {
   TrendingUp,
   ArrowRight,
   Clock,
-  ExternalLink
-} from 'lucide-react';
-import { SeverityBadge } from '../components/common/RiskBadge';
-import { FindingDrawer } from '../components/security/FindingDrawer';
-import { SearchBar } from '../components/common/SearchBar';
-import { DataTable } from '../components/common/DataTable';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid
-} from 'recharts';
-import { useNavigate } from 'react-router-dom';
+  ExternalLink,
+  FolderGit2
+} from "lucide-react";
+import { SeverityBadge } from "../components/common/RiskBadge";
+import { FindingDrawer } from "../components/security/FindingDrawer";
+import { SearchBar } from "../components/common/SearchBar";
+import { DataTable } from "../components/common/DataTable";
+import { WillBeIntegratedSoon } from "../components/common/WillBeIntegratedSoon";
+import { EmptyState } from "../components/common/EmptyState";
+import { useNavigate } from "react-router-dom";
 
 export function SecurityPage({ headless = false, repoId = null }) {
   const { currentRepo } = useApp();
   const targetRepoId = repoId || currentRepo?.id;
   const [findings, setFindings] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [search, setSearch] = useState('');
-  const [severityFilter, setSeverityFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [search, setSearch] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedFinding, setSelectedFinding] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
+      if (!targetRepoId) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
-      const [findingsList, scoreHistory] = await Promise.all([
-        securityService.getFindings({
-          search,
-          severity: severityFilter,
-          status: statusFilter,
-          repoId: targetRepoId
-        }),
-        securityService.getScoreHistory(targetRepoId)
-      ]);
-      setFindings(findingsList);
-      setHistory(scoreHistory);
+      const findingsList = await securityService.getFindings({
+        search,
+        severity: severityFilter,
+        status: statusFilter,
+        repoId: targetRepoId
+      });
+      setFindings(findingsList || []);
       setIsLoading(false);
     }
     load();
   }, [search, severityFilter, statusFilter, targetRepoId]);
 
-  const risk = currentRepo?.riskSummary || { critical: 0, high: 0, medium: 0, low: 0 };
+  if (!currentRepo && !targetRepoId) {
+    return (
+      <div className="py-12">
+        <EmptyState
+          icon={FolderGit2}
+          title="No repository selected"
+          description="Select or connect a repository to view security vulnerabilities and code smell findings."
+          actionLabel="Connect Repository"
+          onAction={() => navigate("/connect")}
+        />
+      </div>
+    );
+  }
+
+  const critical = findings.filter(f => (f.severity || "").toUpperCase() === "CRITICAL").length;
+  const high = findings.filter(f => (f.severity || "").toUpperCase() === "HIGH").length;
+  const medium = findings.filter(f => (f.severity || "").toUpperCase() === "MEDIUM").length;
+  const low = findings.filter(f => (f.severity || "").toUpperCase() === "LOW").length;
+
+  const securityScore = Math.max(10, 100 - (critical * 20) - (high * 10) - (medium * 5) - (low * 2));
 
   const columns = [
     {
-      header: 'Severity',
-      key: 'severity',
+      header: "Severity",
+      key: "severity",
       render: (val) => <SeverityBadge severity={val} size="sm" />
     },
     {
-      header: 'Finding Description',
-      key: 'title',
+      header: "Finding Description",
+      key: "title",
       render: (val, row) => (
         <div>
           <div className="font-semibold text-zinc-100">{val}</div>
@@ -78,8 +90,8 @@ export function SecurityPage({ headless = false, repoId = null }) {
       )
     },
     {
-      header: 'File Location',
-      key: 'file',
+      header: "File Location",
+      key: "file",
       render: (val, row) => (
         <div className="flex items-center gap-1.5 text-zinc-300">
           <FileCode size={13} className="text-cyan-400 shrink-0" />
@@ -89,16 +101,16 @@ export function SecurityPage({ headless = false, repoId = null }) {
       )
     },
     {
-      header: 'Status',
-      key: 'status',
+      header: "Status",
+      key: "status",
       render: (val) => (
         <span
           className={`text-[11px] font-mono px-2 py-0.5 rounded ${
-            val === 'Open'
-              ? 'bg-rose-950/60 text-rose-300 border border-rose-800/60 font-semibold'
-              : val === 'In Review'
-              ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60'
-              : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/60'
+            val === "Open"
+              ? "bg-rose-950/60 text-rose-300 border border-rose-800/60 font-semibold"
+              : val === "In Review"
+              ? "bg-amber-950/60 text-amber-300 border border-amber-800/60"
+              : "bg-emerald-950/60 text-emerald-300 border border-emerald-800/60"
           }`}
         >
           {val}
@@ -106,9 +118,9 @@ export function SecurityPage({ headless = false, repoId = null }) {
       )
     },
     {
-      header: 'Action',
-      key: 'id',
-      align: 'right',
+      header: "Action",
+      key: "id",
+      align: "right",
       render: (val, row) => (
         <button
           onClick={(e) => {
@@ -127,23 +139,23 @@ export function SecurityPage({ headless = false, repoId = null }) {
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header — hidden when embedded inside RepositoryDetailPage */}
       {!headless && (
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
-        <div>
-          <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
-            <ShieldAlert size={20} className="text-rose-400" />
-            Security & Vulnerability Intelligence
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1 font-sans">
-            Static Application Security Testing (SAST), secret scanning, injection flaw detection, and automated remediation.
-          </p>
-        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+          <div>
+            <h1 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2.5">
+              <ShieldAlert size={20} className="text-rose-400" />
+              Security & Code Smell Intelligence
+            </h1>
+            <p className="text-xs text-zinc-400 mt-1 font-sans">
+              Deterministic AST code smell diagnostics, maintainability risk evaluation, and architectural rule violations.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
-            Security Score: <strong className="text-emerald-400">{currentRepo?.metrics?.securityScore ?? 85}/100</strong>
-          </span>
+          <div className="flex items-center gap-2 font-mono text-xs">
+            <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+              Security Score: <strong className={securityScore > 75 ? "text-emerald-400" : "text-amber-400"}>{securityScore}/100</strong>
+            </span>
+          </div>
         </div>
-      </div>
       )}
 
       {/* Severity Counters & Trend Grid */}
@@ -152,27 +164,27 @@ export function SecurityPage({ headless = false, repoId = null }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-900/40 font-mono">
             <span className="text-[10px] uppercase text-rose-400 font-semibold block">Critical</span>
-            <span className="text-2xl font-bold text-rose-300">{risk.critical}</span>
-            <span className="text-[10px] text-zinc-400 block mt-1">Immediate blocker</span>
+            <span className="text-2xl font-bold text-rose-300">{critical}</span>
+            <span className="text-[10px] text-zinc-400 block mt-1">High severity smells</span>
           </div>
           <div className="p-3.5 rounded-xl bg-orange-950/30 border border-orange-900/40 font-mono">
             <span className="text-[10px] uppercase text-orange-400 font-semibold block">High</span>
-            <span className="text-2xl font-bold text-orange-300">{risk.high}</span>
-            <span className="text-[10px] text-zinc-400 block mt-1">High blast radius</span>
+            <span className="text-2xl font-bold text-orange-300">{high}</span>
+            <span className="text-[10px] text-zinc-400 block mt-1">Complexity & nesting</span>
           </div>
           <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-900/40 font-mono">
             <span className="text-[10px] uppercase text-amber-400 font-semibold block">Medium</span>
-            <span className="text-2xl font-bold text-amber-300">{risk.medium}</span>
-            <span className="text-[10px] text-zinc-400 block mt-1">Moderate exploitability</span>
+            <span className="text-2xl font-bold text-amber-300">{medium}</span>
+            <span className="text-[10px] text-zinc-400 block mt-1">Moderate maintainability</span>
           </div>
           <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-900/40 font-mono">
             <span className="text-[10px] uppercase text-emerald-400 font-semibold block">Low</span>
-            <span className="text-2xl font-bold text-emerald-300">{risk.low}</span>
-            <span className="text-[10px] text-zinc-400 block mt-1">Informational findings</span>
+            <span className="text-2xl font-bold text-emerald-300">{low}</span>
+            <span className="text-[10px] text-zinc-400 block mt-1">Informational suggestions</span>
           </div>
         </div>
 
-        {/* Security Trend Line Chart */}
+        {/* Security Trend -> Will be integrated soon */}
         <div className="lg:col-span-2 p-4 rounded-xl border border-zinc-800 bg-zinc-900/60 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <div>
@@ -186,31 +198,11 @@ export function SecurityPage({ headless = false, repoId = null }) {
             </div>
           </div>
 
-          <div className="h-44 w-full font-mono text-xs">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="date" stroke="#71717a" tickLine={false} />
-                <YAxis domain={[75, 100]} stroke="#71717a" tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#18181b',
-                    borderColor: '#27272a',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    fontFamily: 'JetBrains Mono, monospace'
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#10b981"
-                  strokeWidth={2.5}
-                  dot={{ fill: '#10b981', r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <WillBeIntegratedSoon
+            title="Security trajectory tracking will be integrated soon"
+            description="Continuous audit logging of finding resolutions and SLA compliance tracking will be activated once multiple snapshot intervals are captured."
+            className="my-auto py-8"
+          />
         </div>
       </div>
 
@@ -261,7 +253,7 @@ export function SecurityPage({ headless = false, repoId = null }) {
           columns={columns}
           data={findings}
           onRowClick={(row) => setSelectedFinding(row)}
-          emptyMessage="No matching security findings detected"
+          emptyMessage="No security findings or code smells detected in this snapshot analysis."
         />
       </div>
 
@@ -269,7 +261,7 @@ export function SecurityPage({ headless = false, repoId = null }) {
       <FindingDrawer
         finding={selectedFinding}
         onClose={() => setSelectedFinding(null)}
-        onNavigateToFile={() => navigate('/code')}
+        onNavigateToFile={() => navigate("/code")}
       />
     </div>
   );

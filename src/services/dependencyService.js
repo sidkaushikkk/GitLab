@@ -1,4 +1,3 @@
-import { mockDependencies, mockDependencyHealth } from '../data/dependenciesData';
 import { getLatestSnapshotForRepo } from './snapshotHelper';
 
 function getActiveRepoId(repoId) {
@@ -46,37 +45,9 @@ export const dependencyService = {
           if (response.ok) {
             const data = await response.json();
             if (Array.isArray(data.dependencies) && data.dependencies.length > 0) {
-              let deps = data.dependencies.map((dep, idx) => {
-                const cleaned = cleanVersion(dep.version);
+              let deps = data.dependencies.map((dep) => {
                 const cat = inferCategory(dep);
                 const manifest = data.manifests?.find(m => m.manifestPath === dep.manifestPath);
-
-                // Deterministic advisory evaluation
-                let risk = 'LOW';
-                let vulnerability = 'None (Up to date or verified in manifest)';
-                let vulnerabilitySeverity = 'LOW';
-                let upgradeRec = 'Clean package specification. No known vulnerabilities.';
-                let latestVer = cleaned;
-
-                if (dep.name === 'jsonwebtoken' && (dep.version.includes('8.') || dep.version.includes('7.'))) {
-                  risk = 'CRITICAL';
-                  vulnerabilitySeverity = 'CRITICAL';
-                  vulnerability = 'CVE-2022-23529 (Arbitrary File Write / Insecure Key Object)';
-                  upgradeRec = 'Upgrade to 9.0.2 immediately to prevent crafted payload key injection.';
-                  latestVer = '9.0.2';
-                } else if (dep.name === 'lodash' && !dep.version.includes('4.17.21')) {
-                  risk = 'HIGH';
-                  vulnerabilitySeverity = 'HIGH';
-                  vulnerability = 'CVE-2020-8203 (Prototype Pollution)';
-                  upgradeRec = 'Upgrade to 4.17.21 or modern modular alternative.';
-                  latestVer = '4.17.21';
-                } else if (cleaned.startsWith('0.')) {
-                  risk = 'MEDIUM';
-                  vulnerabilitySeverity = 'MEDIUM';
-                  vulnerability = 'Pre-1.0 unstable release';
-                  upgradeRec = 'Audit breaking API changes before production release.';
-                  latestVer = cleaned;
-                }
 
                 // Usage count calculation from internal imports
                 const importsCount = (data.internalImports || []).filter(imp =>
@@ -87,15 +58,15 @@ export const dependencyService = {
                 return {
                   name: dep.name,
                   version: dep.version,
-                  latest: latestVer,
-                  risk,
-                  vulnerability,
-                  vulnerabilitySeverity,
-                  usageCount: importsCount > 0 ? importsCount : (dep.type === 'direct' ? 1 : 0),
-                  license: manifest?.license || 'MIT',
+                  latest: null, // Registry version checking not yet integrated
+                  risk: null, // Vulnerability scanning not yet integrated
+                  vulnerability: null,
+                  vulnerabilitySeverity: null,
+                  usageCount: importsCount,
+                  license: manifest?.license || null,
                   direct: dep.type === 'direct',
                   category: cat,
-                  upgradeRecommendation: upgradeRec
+                  upgradeRecommendation: null
                 };
               });
 
@@ -103,43 +74,19 @@ export const dependencyService = {
                 const q = filter.search.toLowerCase();
                 deps = deps.filter(d =>
                   d.name.toLowerCase().includes(q) ||
-                  d.category.toLowerCase().includes(q) ||
-                  d.vulnerability.toLowerCase().includes(q)
+                  d.category.toLowerCase().includes(q)
                 );
-              }
-              if (filter.risk && filter.risk !== 'ALL') {
-                deps = deps.filter(d => d.risk === filter.risk);
-              }
-              if (filter.onlyVulnerable) {
-                deps = deps.filter(d => d.vulnerabilitySeverity !== 'LOW');
               }
               return deps;
             }
           }
         } catch (e) {
-          // Graceful fallback to mock data
+          // Graceful fallback
         }
       }
     }
 
-    // Graceful fallback to mock data
-    await new Promise(resolve => setTimeout(resolve, 60));
-    let deps = [...mockDependencies];
-    if (filter.search) {
-      const q = filter.search.toLowerCase();
-      deps = deps.filter(d =>
-        d.name.toLowerCase().includes(q) ||
-        d.category.toLowerCase().includes(q) ||
-        d.vulnerability.toLowerCase().includes(q)
-      );
-    }
-    if (filter.risk && filter.risk !== 'ALL') {
-      deps = deps.filter(d => d.risk === filter.risk);
-    }
-    if (filter.onlyVulnerable) {
-      deps = deps.filter(d => d.vulnerabilitySeverity !== 'LOW');
-    }
-    return deps;
+    return [];
   },
 
   /**
@@ -164,33 +111,16 @@ export const dependencyService = {
               const directCount = deps.filter(d => d.type === 'direct').length;
               const transCount = deps.filter(d => d.type !== 'direct').length;
 
-              let vulnerableCount = 0;
-              let highRiskCount = 0;
-              let outdatedCount = 0;
-
-              for (const dep of deps) {
-                if (dep.name === 'jsonwebtoken' && (dep.version.includes('8.') || dep.version.includes('7.'))) {
-                  vulnerableCount++;
-                  highRiskCount++;
-                  outdatedCount++;
-                } else if (dep.name === 'lodash' && !dep.version.includes('4.17.21')) {
-                  vulnerableCount++;
-                  highRiskCount++;
-                } else if (cleanVersion(dep.version).startsWith('0.')) {
-                  outdatedCount++;
-                }
-              }
-
               const licenses = (data.manifests || []).map(m => m.license).filter(Boolean);
               const licenseSummary = licenses.length > 0
-                ? `100% Permissive (${[...new Set(licenses)].join(' / ')})`
-                : '100% Permissive (MIT / Apache 2.0 / BSD)';
+                ? [...new Set(licenses)].join(' / ')
+                : null;
 
               return {
                 total: deps.length,
-                outdated: outdatedCount,
-                vulnerable: vulnerableCount,
-                highRisk: highRiskCount,
+                outdated: null, // Outdated scanning not yet integrated
+                vulnerable: null, // CVE scanning not yet integrated
+                highRisk: null,
                 licenseCompliance: licenseSummary,
                 directDependencies: directCount,
                 transitiveDependencies: transCount
@@ -198,12 +128,11 @@ export const dependencyService = {
             }
           }
         } catch (e) {
-          // Fallback to mock
+          // Graceful fallback
         }
       }
     }
 
-    await new Promise(resolve => setTimeout(resolve, 40));
-    return mockDependencyHealth;
+    return null;
   }
 };

@@ -1,30 +1,26 @@
-import { mockRepositories, mockAvailableGithubRepos } from '../data/repositoriesData';
-
 /**
- * Augment a real connected repository database record with prototype metrics structure
- * so that existing frontend components (Overview, Health, Security, Graph) continue rendering smoothly
+ * Format a real connected repository database record
  */
-function augmentRepository(repo) {
-  const matchingMock = mockRepositories.find(m => m.name.toLowerCase() === repo.name.toLowerCase()) || mockRepositories[0];
-
+function formatRepository(repo) {
+  if (!repo) return null;
   return {
-    ...matchingMock,
-    id: repo.id || matchingMock.id,
+    id: repo.id,
     name: repo.name,
-    organization: repo.owner || matchingMock.organization,
-    description: repo.description || matchingMock.description,
-    primaryLanguage: repo.language || matchingMock.primaryLanguage,
-    defaultBranch: repo.defaultBranch || matchingMock.defaultBranch,
+    organization: repo.owner || repo.organization || 'HitachiSystems',
+    description: repo.description || '',
+    primaryLanguage: repo.language || repo.primaryLanguage || 'Unknown',
+    defaultBranch: repo.defaultBranch || 'main',
     visibility: repo.private ? 'Private' : 'Public',
     status: repo.status || 'connected',
-    lastAnalyzed: repo.lastAnalyzedAt ? new Date(repo.lastAnalyzedAt).toLocaleTimeString() : 'Just now'
+    lastAnalyzed: repo.lastAnalyzedAt ? new Date(repo.lastAnalyzedAt).toLocaleTimeString() : 'Not analyzed yet',
+    createdAt: repo.createdAt,
+    updatedAt: repo.updatedAt
   };
 }
 
 export const repositoryService = {
   /**
    * Get all connected repositories from backend /api/repositories
-   * Falls back to mock data if unauthenticated or no repositories connected
    */
   async getRepositories(filter = {}) {
     let result = [];
@@ -39,15 +35,11 @@ export const repositoryService = {
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data.repositories) && data.repositories.length > 0) {
-          result = data.repositories.map(augmentRepository);
+          result = data.repositories.map(formatRepository);
         }
       }
     } catch (err) {
       // Backend not running or network failure
-    }
-
-    if (result.length === 0) {
-      result = [...mockRepositories];
     }
 
     // Apply client-side filters
@@ -63,11 +55,7 @@ export const repositoryService = {
       result = result.filter(r => r.primaryLanguage === filter.language);
     }
     if (filter.sortBy) {
-      if (filter.sortBy === 'health' && result[0]?.metrics) {
-        result.sort((a, b) => (b.metrics?.healthScore || 0) - (a.metrics?.healthScore || 0));
-      } else if (filter.sortBy === 'security' && result[0]?.metrics) {
-        result.sort((a, b) => (b.metrics?.securityScore || 0) - (a.metrics?.securityScore || 0));
-      } else if (filter.sortBy === 'name') {
+      if (filter.sortBy === 'name') {
         result.sort((a, b) => a.name.localeCompare(b.name));
       }
     }
@@ -89,15 +77,14 @@ export const repositoryService = {
       if (response.ok) {
         const data = await response.json();
         if (data.repository) {
-          return augmentRepository(data.repository);
+          return formatRepository(data.repository);
         }
       }
     } catch (err) {
       // Fallback
     }
 
-    const repo = mockRepositories.find(r => r.id === id);
-    return repo || mockRepositories[0];
+    return null;
   },
 
   /**
@@ -129,10 +116,6 @@ export const repositoryService = {
       }
     } catch (err) {
       // Unauthenticated or network error
-    }
-
-    if (repos.length === 0) {
-      repos = [...mockAvailableGithubRepos];
     }
 
     if (search) {
@@ -168,7 +151,7 @@ export const repositoryService = {
     }
 
     const data = await response.json();
-    return augmentRepository(data.repository);
+    return formatRepository(data.repository);
   },
 
   /**
