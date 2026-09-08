@@ -48,6 +48,10 @@ function validateConfig() {
   const githubFileFetchConcurrency = parseInt(process.env.GITHUB_FILE_FETCH_CONCURRENCY || '5', 10);
   const storagePath = process.env.STORAGE_PATH || path.resolve(__dirname, '../../storage');
 
+  // Webhook Secrets
+  const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET || 'default-github-webhook-secret-key-32chars!';
+  const gitlabWebhookToken = process.env.GITLAB_WEBHOOK_TOKEN || 'default-gitlab-webhook-token-secret!';
+
   return {
     port,
     nodeEnv,
@@ -56,6 +60,8 @@ function validateConfig() {
     githubClientSecret,
     githubCallbackUrl,
     githubTokenEncryptionKey,
+    githubWebhookSecret,
+    gitlabWebhookToken,
     sessionSecret,
     sessionTtlDays,
     sessionTtlMs,

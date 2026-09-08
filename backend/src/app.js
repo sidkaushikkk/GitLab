@@ -7,6 +7,8 @@ import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { repositoriesRouter } from './routes/repositories.js';
+import { pullRequestsRouter } from './routes/pullRequests.js';
+import { webhooksRouter } from './routes/webhooks.js';
 
 export function createApp() {
   const app = express();
@@ -20,8 +22,12 @@ export function createApp() {
   // Parse HTTP-only cookies
   app.use(cookieParser(env.sessionSecret));
 
-  // Parse JSON and form bodies
-  app.use(express.json());
+  // Parse JSON and form bodies while preserving raw request body for HMAC verification
+  app.use(express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    }
+  }));
   app.use(express.urlencoded({ extended: true }));
 
   // HTTP Request Logging
@@ -39,6 +45,8 @@ export function createApp() {
   app.use(healthRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/repositories', repositoriesRouter);
+  app.use('/api/repositories/:id/pulls', pullRequestsRouter);
+  app.use('/api/webhooks', webhooksRouter);
 
   // Handle 404 for unknown endpoints
   app.use(notFoundHandler);

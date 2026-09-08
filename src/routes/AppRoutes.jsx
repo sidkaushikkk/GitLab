@@ -28,6 +28,7 @@ export function AppRoutes() {
         <Route path="/repository/analyzing" element={<Navigate to="/connect" replace />} />
         <Route path="/pulls" element={<PullRequestsPage />} />
         <Route path="/pulls/:id" element={<PullRequestDetailPage />} />
+        <Route path="/repository/:repoId/pulls/:id" element={<PullRequestDetailPage />} />
         <Route path="/code-health" element={<CodeHealthPage />} />
         <Route path="/security" element={<SecurityPage />} />
         <Route path="/api-reliability" element={<ApiReliabilityPage />} />
