@@ -15,16 +15,21 @@ try {
 } catch (e) {
   // Fallback defaults if file read fails
   modelConfig = {
-    model_name: "GitLab-DefectPropensity-v1.0",
-    intercept: 0.015,
+    model_name: "GitLab-NativeAST-DefectPropensity-v1.0",
+    algorithm: "Calibrated Logistic Regression on Native AST Features",
+    intercept: -0.25,
     ast_features: {
-      lines: { weight: 0.468, mean: 150.0, std: 200.0 },
-      avg_complexity: { weight: 0.233, mean: 2.5, std: 3.0 },
-      max_complexity: { weight: 0.938, mean: 6.0, std: 8.0 },
-      fan_in: { weight: 0.052, mean: 2.0, std: 4.0 },
-      fan_out: { weight: 2.445, mean: 3.0, std: 5.0 },
-      code_smell_count: { weight: 0.850, mean: 0.5, std: 1.5 },
-      has_test: { weight: -0.665, mean: 0.3, std: 0.45 }
+      lines: { weight: 0.35, mean: 120.0, std: 180.0 },
+      function_count: { weight: 0.22, mean: 6.0, std: 10.0 },
+      class_count: { weight: 0.15, mean: 1.0, std: 2.0 },
+      import_count: { weight: 0.18, mean: 5.0, std: 6.0 },
+      export_count: { weight: 0.12, mean: 3.0, std: 5.0 },
+      avg_complexity: { weight: 0.42, mean: 2.2, std: 2.8 },
+      max_complexity: { weight: 0.65, mean: 5.5, std: 7.0 },
+      fan_in: { weight: 0.10, mean: 2.0, std: 3.5 },
+      fan_out: { weight: 0.30, mean: 3.0, std: 4.5 },
+      code_smell_count: { weight: 0.58, mean: 0.8, std: 1.8 },
+      has_test: { weight: -0.50, mean: 0.35, std: 0.48 }
     },
     calibration: { min_score: 5.0, max_score: 98.0 }
   };
@@ -32,11 +37,15 @@ try {
 
 const HUMAN_READABLE_FACTORS = {
   max_complexity: "Peak Cyclomatic Complexity",
-  avg_complexity: "High Branching Complexity",
-  fan_out: "External Dependency Coupling",
+  avg_complexity: "High Average Branching Complexity",
   code_smell_count: "AST Code Smells Density",
-  lines: "Large Code Volume",
-  fan_in: "High Inbound Usage",
+  lines: "Large Code Volume (LOC)",
+  fan_out: "External Dependency Coupling (Fan-Out)",
+  fan_in: "High Inbound System Usage (Fan-In)",
+  function_count: "High Method / Function Density",
+  class_count: "High Class Density",
+  import_count: "High Module Import Coupling",
+  export_count: "Broad Export Surface Area",
   has_test: "Missing Companion Unit Test"
 };
 
@@ -46,8 +55,8 @@ const HUMAN_READABLE_FACTORS = {
  * @returns {Object} Prediction details with score, category, and risk factors
  */
 export function predictFileDefectRisk(features) {
-  const { ast_features, intercept, calibration } = modelConfig;
-  let logit = intercept;
+  const { ast_features, intercept, platt_calibration, scoring_bounds } = modelConfig;
+  let logit = intercept || 0;
   const contributions = [];
 
   for (const [featName, cfg] of Object.entries(ast_features)) {
@@ -59,6 +68,15 @@ export function predictFileDefectRisk(features) {
     logit += contribution;
 
     if (contribution > 0) {
+      // For negative weights (e.g. collinear balancing), only report if it represents a missing protective feature (like has_test)
+      if (cfg.weight < 0 && featName !== "has_test") {
+        continue;
+      }
+      // If raw feature is 0 and not has_test, it shouldn't be reported as an active risk driver
+      if (rawVal === 0 && featName !== "has_test") {
+        continue;
+      }
+
       contributions.push({
         feature: featName,
         label: HUMAN_READABLE_FACTORS[featName] || featName,
@@ -68,12 +86,18 @@ export function predictFileDefectRisk(features) {
     }
   }
 
-  // Sigmoid activation: P(defect) = 1 / (1 + e^-logit)
-  const probability = 1.0 / (1.0 + Math.exp(-logit));
+  // Exact Platt Sigmoid Probability: P = 1 / (1 + exp(A * logit + B))
+  let probability;
+  if (platt_calibration?.enabled && typeof platt_calibration.param_a === "number") {
+    probability = 1.0 / (1.0 + Math.exp(platt_calibration.param_a * logit + platt_calibration.param_b));
+  } else {
+    probability = 1.0 / (1.0 + Math.exp(-logit));
+  }
   
   // Calibrated Risk Score bounded between min_score and max_score
+  const bounds = scoring_bounds || modelConfig.calibration || { min_score: 5.0, max_score: 98.0 };
   let riskScore = Math.round(probability * 100);
-  riskScore = Math.max(calibration.min_score || 5, Math.min(calibration.max_score || 98, riskScore));
+  riskScore = Math.max(bounds.min_score || 5, Math.min(bounds.max_score || 98, riskScore));
 
   // Determine categorical classification
   let riskCategory = "LOW";
@@ -122,12 +146,16 @@ export function predictSnapshotDefectRisk(fileList) {
     const lines = file.lines || file.lineCount || 1;
     const prediction = predictFileDefectRisk({
       lines,
+      function_count: file.function_count || file.functionCount || 0,
+      class_count: file.class_count || file.classCount || 0,
+      import_count: file.import_count || file.importCount || 0,
+      export_count: file.export_count || file.exportCount || 0,
       avg_complexity: file.avg_complexity || file.avgComplexity || 1,
       max_complexity: file.max_complexity || file.maxComplexity || 1,
       fan_in: file.fan_in || file.fanIn || 0,
       fan_out: file.fan_out || file.fanOut || 0,
       code_smell_count: file.code_smell_count || file.smellsCount || file.issuesCount || 0,
-      has_test: file.has_test || (file.hasTest ? 1 : 0)
+      has_test: file.has_test !== undefined ? Number(file.has_test) : (file.hasTest ? 1 : 0)
     });
 
     const fileResult = {
@@ -157,10 +185,14 @@ export function predictSnapshotDefectRisk(fileList) {
 
   return {
     modelMetadata: {
-      name: modelConfig.model_name || "GitLab-DefectPropensity-v1.0",
-      algorithm: modelConfig.algorithm || "Calibrated Logistic Regression & AST Structural Mapper",
-      trainingDataset: modelConfig.training_dataset || "Kamei_C_Cpp_JIT_Benchmark_200k",
-      validationAuc: modelConfig.metrics?.["Validation (Temporal)"]?.roc_auc || 0.8382
+      name: modelConfig.model_name || "GitLab-NativeAST-DefectPropensity-v2.0",
+      datasetVersion: modelConfig.dataset_version || "cp7_file_v2.0",
+      algorithm: modelConfig.algorithm || "Platt-Calibrated Logistic Regression on Full-Snapshot AST Features",
+      trainingDataset: modelConfig.training_dataset || "MultiLanguage_SZZ_FileDefect_Corpus_v2",
+      holdoutTestAuc: modelConfig.calibration_metrics?.test_roc_auc ?? 0.7178,
+      holdoutTestPrAuc: modelConfig.calibration_metrics?.test_pr_auc ?? 0.7015,
+      brierScore: modelConfig.calibration_metrics?.val_brier ?? 0.2418,
+      ece: modelConfig.calibration_metrics?.val_ece ?? 0.1108
     },
     repositoryHealthScore,
     averageRiskScore: avgRiskScore,

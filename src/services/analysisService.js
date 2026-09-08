@@ -113,11 +113,66 @@ export const analysisService = {
   },
 
   /**
+   * Get ML defect propensity predictions and risk hotspots for a snapshot
+   */
+  async getPredictions(repoId, snapshotId = null) {
+    const targetRepoId = getActiveRepoId(repoId);
+    if (!targetRepoId) return null;
+
+    let snapId = snapshotId;
+    if (!snapId) {
+      const snap = await getLatestSnapshotForRepo(targetRepoId);
+      snapId = snap?.id;
+    }
+    if (!snapId) return null;
+
+    try {
+      const response = await fetch(`/api/repositories/${targetRepoId}/snapshots/${snapId}/analysis/predictions`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      // Fallback
+    }
+    return null;
+  },
+
+  /**
    * Get risk hotspots from real analysis (no mock fallback)
    */
   async getRiskHotspots(repoId = null) {
     const targetRepoId = getActiveRepoId(repoId);
     if (targetRepoId) {
+      // First try to get calibrated ML hotspots
+      try {
+        const predData = await this.getPredictions(targetRepoId);
+        if (predData && Array.isArray(predData.hotspots) && predData.hotspots.length > 0) {
+          return predData.hotspots.map((h, idx) => ({
+            id: `ml-hotspot-${idx + 1}`,
+            file: h.filePath,
+            symbolName: h.filePath.split('/').pop(),
+            complexity: `Risk Score: ${h.riskScore}/100 (${h.riskCategory})`,
+            rawComplexity: h.complexity || 1,
+            issuesCount: h.smellsCount || 0,
+            category: h.topRiskFactors?.[0]?.factor || 'Defect Propensity Hotspot',
+            description: h.topRiskFactors?.length > 0
+              ? `Associated risk factors: ${h.topRiskFactors.map(f => `${f.factor} (${f.impact})`).join(', ')}`
+              : `Calibrated defect probability: ${(h.probability * 100).toFixed(1)}%`,
+            riskLevel: h.riskCategory || (h.riskScore >= 70 ? 'CRITICAL' : h.riskScore >= 50 ? 'HIGH' : 'MEDIUM'),
+            findingsCount: h.smellsCount || 0,
+            riskScore: h.riskScore,
+            probability: h.probability,
+            topRiskFactors: h.topRiskFactors || []
+          }));
+        }
+      } catch (e) {
+        // Fallback to deterministic metrics
+      }
+
       const metricsData = await this.getCodeMetrics(targetRepoId, {
         entityType: 'function',
         sortBy: 'complexity',
@@ -188,12 +243,22 @@ export const analysisService = {
     let files = [];
 
     if (targetRepoId) {
-      const metricsData = await this.getCodeMetrics(targetRepoId, {
-        entityType: 'file',
-        sortBy: filter.sortBy || 'complexity',
-        sortDir: 'desc',
-        limit: 100
-      });
+      const [metricsData, predData] = await Promise.all([
+        this.getCodeMetrics(targetRepoId, {
+          entityType: 'file',
+          sortBy: filter.sortBy || 'complexity',
+          sortDir: 'desc',
+          limit: 100
+        }),
+        this.getPredictions(targetRepoId).catch(() => null)
+      ]);
+
+      const predMap = new Map();
+      if (predData && Array.isArray(predData.predictions)) {
+        for (const p of predData.predictions) {
+          predMap.set(p.filePath, p);
+        }
+      }
 
       if (metricsData && Array.isArray(metricsData.metrics) && metricsData.metrics.length > 0) {
         files = metricsData.metrics.map(item => {
@@ -201,10 +266,11 @@ export const analysisService = {
           const nesting = item.maxNestingDepth || 0;
           const smells = item.codeSmellCount || 0;
           const hasTest = !!item.hasTest;
+          const pred = predMap.get(item.entityId);
 
           // Deterministic maintainability index (0-100)
           const maintainability = Math.max(10, Math.min(100, Math.round(100 - (complexity * 2.5) - (nesting * 4) - (smells * 5))));
-          const risk = complexity > 15 || smells >= 3 ? 'CRITICAL' : complexity > 8 || smells >= 1 ? 'HIGH' : complexity > 4 ? 'MEDIUM' : 'LOW';
+          const risk = pred?.riskCategory || (complexity > 15 || smells >= 3 ? 'CRITICAL' : complexity > 8 || smells >= 1 ? 'HIGH' : complexity > 4 ? 'MEDIUM' : 'LOW');
 
           return {
             file: item.entityId,
@@ -216,7 +282,10 @@ export const analysisService = {
             duplication: null,
             testCoverage: hasTest ? 'Guarded' : 'No Tests',
             risk,
-            debtScore: item.debtScore ?? Math.round((complexity * 2) + (nesting * 3) + (smells * 5) - (hasTest ? 5 : 0))
+            debtScore: item.debtScore ?? Math.round((complexity * 2) + (nesting * 3) + (smells * 5) - (hasTest ? 5 : 0)),
+            mlRiskScore: pred ? pred.riskScore : null,
+            mlProbability: pred ? pred.probability : null,
+            mlTopFactors: pred ? pred.topRiskFactors : null
           };
         });
       }

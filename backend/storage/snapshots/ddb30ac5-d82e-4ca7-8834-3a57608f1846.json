@@ -1,0 +1,50 @@
+{
+  "snapshotId": "ddb30ac5-d82e-4ca7-8834-3a57608f1846",
+  "repository": {
+    "id": "eacdb8ea-64be-4597-8ce9-16e76395f60d",
+    "provider": "github",
+    "owner": "sidkaushikkk",
+    "name": "sidkaushikkk",
+    "fullName": "sidkaushikkk/sidkaushikkk"
+  },
+  "source": {
+    "provider": "github",
+    "branch": "main",
+    "commitSha": "a995b0efdd8caeb1548b45224a3431ed72dcb973"
+  },
+  "metadata": {
+    "isTruncated": false,
+    "maxFileSizeBytes": 1000000
+  },
+  "statistics": {
+    "totalFilesDiscovered": 1,
+    "filesIncluded": 1,
+    "filesSkipped": 0,
+    "totalBytes": 4481
+  },
+  "manifest": {
+    "included": [
+      {
+        "path": "README.md",
+        "sha": "82328ba631b21608dd2736fb72ff98f772838a5f",
+        "size": 4481,
+        "language": "markdown",
+        "type": "documentation",
+        "lineCount": 174
+      }
+    ],
+    "skipped": []
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha": "82328ba631b21608dd2736fb72ff98f772838a5f",
+      "size": 4481,
+      "language": "markdown",
+      "type": "documentation",
+      "lineCount": 174,
+      "content": "<div align=\"center\">\n\n# 👋 Hey, I'm Sidhant Kaushik\n\n### `Frontend Developer` • `CSE-AI Student` • `Builder`\n\n<p>\n  <a href=\"https://www.sidkaushik.dev\">\n    <img src=\"https://img.shields.io/badge/Portfolio-sidkaushik.dev-0e75b6?style=for-the-badge&logo=google-chrome&logoColor=white\" alt=\"Portfolio\">\n  </a>\n  <a href=\"https://www.linkedin.com/in/sidhantkaushik\">\n    <img src=\"https://img.shields.io/badge/LinkedIn-Sidhant%20Kaushik-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white\" alt=\"LinkedIn\">\n  </a>\n  <a href=\"mailto:ksiddhant705@gmail.com\">\n    <img src=\"https://img.shields.io/badge/Email-Contact%20Me-EA4335?style=for-the-badge&logo=gmail&logoColor=white\" alt=\"Email\">\n  </a>\n</p>\n\n<img src=\"https://komarev.com/ghpvc/?username=sidkaushikkk&label=Profile%20Views&color=0e75b6&style=for-the-badge\" alt=\"Profile views\">\n\n</div>\n\n---\n\n## 🧑‍💻 About Me\n\n```text\n🎓 CSE-AI student\n💻 Frontend & Full-Stack developer\n🤖 Exploring Artificial Intelligence\n🛡️ Learning Cybersecurity\n🚀 Currently building GitLogs\n🧩 I like building things, breaking things, fixing things —\n   and occasionally wondering why I started building them.\n```\n\n* 🔭 Currently working on **GitLogs**\n* 🌱 Currently learning **Artificial Intelligence & Cybersecurity**\n* 💬 Ask me about **Full-Stack Development & Data Science**\n* 🌐 Portfolio: **[sidkaushik.dev](https://www.sidkaushik.dev)**\n* 📄 Resume: **[View Resume](https://www.sidkaushik.dev/SidhantKaushik_Resume.pdf)**\n\n---\n\n## 📈 Contribution Activity\n\n<div align=\"center\">\n\n<a href=\"https://github.com/sidkaushikkk\">\n  <img src=\"https://github-readme-activity-graph.vercel.app/graph?username=sidkaushikkk&theme=github-compact&hide_border=true&area=true\" alt=\"GitHub contribution activity graph\"/>\n</a>\n\n</div>\n\n---\n\n# 🚀 Featured Projects\n\n<table>\n<tr>\n<td width=\"50%\">\n\n### 🧠 ATS Analyzer\n\n**Resume Analyzer and Score Generator**\n\nA project focused on creating and analyzing resumes with scored insights, problems, suggestions and suggested roles.\n\n**Focus:**\n `Resume Analysis` `Developer Tools`\n\n[View Project →](https://ats-tracker-lite.vercel.app)\n\n</td>\n\n<td width=\"50%\">\n\n### 🌐 Portfolio\n\n**Personal Developer Portfolio**\n\nMy personal portfolio showcasing my work, projects, experience and technical journey.\n\n**Stack:**\n`React` `JavaScript` `CSS` `Vercel`\n\n[Visit Portfolio →](https://www.sidkaushik.dev)\n\n</td>\n</tr>\n</table>\n\n> 💡 More projects and experiments are available on my [GitHub profile](https://github.com/sidkaushikkk).\n\n---\n\n# 🛠️ Tech Stack\n\n### 💻 Languages\n\n<p>\n<img src=\"https://skillicons.dev/icons?i=c,cpp,java,python,javascript,typescript\" alt=\"Programming languages\">\n</p>\n\n### 🎨 Frontend\n\n<p>\n<img src=\"https://skillicons.dev/icons?i=html,css,react,redux,bootstrap,tailwind\" alt=\"Frontend technologies\">\n</p>\n\n### ⚙️ Backend & Databases\n\n<p>\n<img src=\"https://skillicons.dev/icons?i=nodejs,express,django,mongodb,mysql,postgres,redis\" alt=\"Backend and database technologies\">\n</p>\n\n### 🤖 AI / Data\n\n<p>\n<img src=\"https://skillicons.dev/icons?i=python,pytorch,tensorflow\" alt=\"AI and data technologies\">\n</p>\n\n### ☁️ Tools & Platforms\n\n<p>\n<img src=\"https://skillicons.dev/icons?i=git,github,docker,kubernetes,aws,azure,gcp,figma,postman\" alt=\"Tools and platforms\">\n</p>\n\n---\n\n\n\n# 🔥 Commit Activity\n\n<div align=\"center\">\n\n<img src=\"https://github-readme-activity-graph.vercel.app/graph?username=sidkaushikkk&theme=github-compact&custom_title=Sidhant%27s%20Commit%20Activity&hide_border=true&area=true&point=false\" alt=\"Commit activity graph\">\n\n</div>\n\n---\n\n# 🤝 Let's Connect\n\n<div align=\"center\">\n\n<a href=\"https://www.sidkaushik.dev\">\n<img src=\"https://img.shields.io/badge/🌐%20Portfolio-0e75b6?style=for-the-badge\" alt=\"Portfolio\">\n</a>\n\n<a href=\"https://www.linkedin.com/in/sidhantkaushik\">\n<img src=\"https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white\" alt=\"LinkedIn\">\n</a>\n\n<a href=\"https://www.instagram.com/sid.kaushik_\">\n<img src=\"https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white\" alt=\"Instagram\">\n</a>\n\n<a href=\"mailto:ksiddhant705@gmail.com\">\n<img src=\"https://img.shields.io/badge/Email-EA4335?style=for-the-badge&logo=gmail&logoColor=white\" alt=\"Email\">\n</a>\n\n</div>\n\n<br>\n\n<div align=\"center\">\n\n### ⭐ If you find something useful here, consider starring the repository.\n\n**Thanks for stopping by! 🚀**\n\n</div>\n"
+    }
+  ],
+  "createdAt": "2026-09-08T11:08:27.447Z"
+}

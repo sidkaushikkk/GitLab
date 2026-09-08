@@ -172,6 +172,32 @@ export function CodeHealthPage() {
       )
     },
     {
+      header: "ML Defect Risk",
+      key: "mlRiskScore",
+      sortable: true,
+      render: (val, row) => (
+        row.mlRiskScore !== null && row.mlRiskScore !== undefined ? (
+          <div className="flex flex-col">
+            <span className={`font-mono font-bold text-xs ${
+              val >= 70 ? "text-rose-400" :
+              val >= 50 ? "text-amber-400" :
+              val >= 30 ? "text-yellow-400" :
+              "text-emerald-400"
+            }`}>
+              {val}% Risk
+            </span>
+            {row.mlTopFactors?.[0] && (
+              <span className="text-[10px] text-zinc-400 truncate max-w-[130px]" title={row.mlTopFactors.map(f => `${f.factor} (${f.impact})`).join(', ')}>
+                {row.mlTopFactors[0].factor}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-zinc-500 font-mono text-xs">—</span>
+        )
+      )
+    },
+    {
       header: "Risk Level",
       key: "risk",
       render: (val) => <RiskBadge level={val} size="sm" />

@@ -659,13 +659,52 @@ numpy
 
     console.log('✓ Test 15 Passed: Dependency inventory endpoint accurately surfaces direct and dev dependencies.');
 
+    // ------------------------------------------------------------------------
+    // Test 16: Checkpoint 7 ML Defect Propensity Predictions Endpoint
+    // ------------------------------------------------------------------------
+    console.log('[Test 16] Testing GET /api/repositories/:id/snapshots/:snapshotId/analysis/predictions (Checkpoint 7 ML Engine)...');
+
+    const resGetPreds = await fetch(`${baseUrl}/api/repositories/${repoA.id}/snapshots/${snapshotA.id}/analysis/predictions`, {
+      headers: { 'Cookie': `session_id=${tokenA}` }
+    });
+    assert.equal(resGetPreds.status, 200);
+    const bodyPreds = await resGetPreds.json();
+
+    assert.ok(bodyPreds.modelMetadata, 'Response should contain modelMetadata');
+    assert.ok(bodyPreds.modelMetadata.name, 'Model should have a registered name');
+    assert.equal(typeof bodyPreds.repositoryHealthScore, 'number');
+    assert.equal(typeof bodyPreds.averageRiskScore, 'number');
+    assert.ok(bodyPreds.distribution, 'Should contain risk distribution');
+    assert.ok(Array.isArray(bodyPreds.hotspots), 'Should contain hotspots array');
+    assert.ok(Array.isArray(bodyPreds.predictions), 'Should contain predictions array');
+    assert.ok(bodyPreds.predictions.length > 0, 'Predictions should be populated for analyzed files');
+
+    const sampleFilePred = bodyPreds.predictions[0];
+    assert.ok(sampleFilePred.filePath, 'File prediction should contain filePath');
+    assert.equal(typeof sampleFilePred.riskScore, 'number');
+    assert.ok(sampleFilePred.riskScore >= 5 && sampleFilePred.riskScore <= 98, 'Risk score must be calibrated between 5 and 98');
+    assert.ok(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(sampleFilePred.riskCategory), 'Risk category must be valid');
+    assert.ok(Array.isArray(sampleFilePred.topRiskFactors), 'Top risk factors must be array');
+
+    // Cross-tenant security check (User B cannot access User A's predictions)
+    const resUnauthorized = await fetch(`${baseUrl}/api/repositories/${repoA.id}/snapshots/${snapshotA.id}/analysis/predictions`, {
+      headers: { 'Cookie': `session_id=${tokenB}` }
+    });
+    assert.equal(resUnauthorized.status, 404, 'Cross-tenant access must return 404');
+
+    // Unauthenticated check
+    const resNoAuth = await fetch(`${baseUrl}/api/repositories/${repoA.id}/snapshots/${snapshotA.id}/analysis/predictions`);
+    assert.equal(resNoAuth.status, 401, 'Unauthenticated request must return 401');
+
+    console.log('✓ Test 16 Passed: Checkpoint 7 Predictive Defect Propensity inference endpoint verified with calibrated probabilities, risk ranking, and strict tenant isolation.');
+
     // Cleanup
     await defaultStorageProvider.deleteSnapshot(snapshotA.id);
     await defaultStorageProvider.deleteSnapshot(snapshotBad.id);
     await pool.query('DELETE FROM users WHERE id IN ($1, $2)', [userA.id, userB.id]);
 
     console.log('\n======================================================');
-    console.log('ALL PHASE 1 CODE INTELLIGENCE TESTS PASSED! (15/15)');
+    console.log('ALL PHASE 1 CODE INTELLIGENCE & CP7 ML TESTS PASSED! (16/16)');
     console.log('======================================================\n');
   } finally {
     await stopServer();

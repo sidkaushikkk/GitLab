@@ -6,6 +6,7 @@ import { extractRelationships } from './relationshipExtractor.js';
 import { detectCodeSmells } from './codeSmells.js';
 import { extractFeatures, FEATURE_SCHEMA_VERSION } from './featureExtractor.js';
 import { parseManifestFile } from './manifestParser.js';
+import { predictSnapshotDefectRisk } from './mlInference.js';
 
 /**
  * Service orchestrating AST code intelligence analysis and ML-ready feature extraction
@@ -722,6 +723,71 @@ export const codeIntelligenceService = {
         targetFilePath: r.target_file_path,
         symbolsImported: r.symbols_imported
       }))
+    };
+  },
+
+  /**
+   * Retrieves ML defect propensity predictions and risk hotspots for a snapshot
+   */
+  async getAnalysisPredictions(snapshotId, userId) {
+    const { rows: runRows } = await pool.query(`
+      SELECT a.id as run_id, a.repository_id
+      FROM analysis_runs a
+      JOIN repositories r ON a.repository_id = r.id
+      WHERE a.snapshot_id = $1 AND r.user_id = $2 AND a.status = 'completed'
+      ORDER BY a.created_at DESC LIMIT 1
+    `, [snapshotId, userId]);
+
+    if (runRows.length === 0) {
+      const err = new Error('Completed analysis not found for this snapshot.');
+      err.status = 404;
+      throw err;
+    }
+
+    const runId = runRows[0].run_id;
+
+    // Fetch all files from analysis_files
+    const { rows: fileRows } = await pool.query(`
+      SELECT id, file_path, language, line_count, status
+      FROM analysis_files
+      WHERE analysis_run_id = $1
+      ORDER BY file_path ASC
+    `, [runId]);
+
+    // Fetch file-level features
+    const { rows: featRows } = await pool.query(`
+      SELECT entity_id, feature_name, feature_value
+      FROM features
+      WHERE analysis_run_id = $1 AND entity_type = 'file'
+    `, [runId]);
+
+    // Index features by file path
+    const fileFeaturesMap = new Map();
+    for (const f of featRows) {
+      if (!fileFeaturesMap.has(f.entity_id)) {
+        fileFeaturesMap.set(f.entity_id, {});
+      }
+      fileFeaturesMap.get(f.entity_id)[f.feature_name] = f.feature_value;
+    }
+
+    // Assemble file objects for ML inference
+    const filesToPredict = fileRows.map(f => {
+      const feats = fileFeaturesMap.get(f.file_path) || {};
+      return {
+        filePath: f.file_path,
+        language: f.language,
+        lines: f.line_count || feats.lines || 1,
+        ...feats
+      };
+    });
+
+    const predictions = predictSnapshotDefectRisk(filesToPredict);
+
+    return {
+      snapshotId,
+      repositoryId: runRows[0].repository_id,
+      analysisRunId: runId,
+      ...predictions
     };
   }
 };

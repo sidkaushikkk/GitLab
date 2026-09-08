@@ -1,14 +1,166 @@
 {
-  "model_name": "GitLab-NativeAST-DefectPropensity-v2.0",
-  "dataset_version": "cp7_file_v2.0",
-  "training_dataset": "MultiLanguage_SZZ_FileDefect_Corpus_v2",
-  "algorithm": "Platt-Calibrated Logistic Regression on Full-Snapshot AST Features",
-  "languages": [
-    "javascript",
-    "typescript",
-    "python",
-    "java"
-  ],
+  "timestamp": "2026-09-08T10:45:51.454Z",
+  "dataset_manifest": {
+    "dataset_version": "cp7_file_v2.0",
+    "generation_timestamp": "2026-09-08T10:45:51.454Z",
+    "random_seed": 42,
+    "szz_methodology": "Pre-Fix Snapshot Target Labeling (C_fix^)",
+    "negative_sampling_policy": "Randomized seeded reservoir without replacement; max 2 snapshots per file path",
+    "total_observations": 1049,
+    "unique_file_identities": 431,
+    "unique_file_commit_triples": 1049,
+    "total_excluded_tests": 45148,
+    "class_distribution": {
+      "total": 1049,
+      "positive": 599,
+      "negative": 450,
+      "positive_rate_percent": 57.1
+    },
+    "split_definitions": {
+      "train_projects": [
+        "express",
+        "async",
+        "lodash",
+        "zod",
+        "axios",
+        "requests",
+        "flask",
+        "bottle",
+        "gson"
+      ],
+      "val_projects": [
+        "chalk",
+        "click"
+      ],
+      "holdout_test_projects": [
+        "validator"
+      ]
+    },
+    "per_project_statistics": {
+      "express": {
+        "split": "train",
+        "total": 25,
+        "positive": 14,
+        "negative": 11,
+        "positive_rate": 56,
+        "unique_files": 10,
+        "unique_file_commit_triples": 25
+      },
+      "async": {
+        "split": "train",
+        "total": 52,
+        "positive": 31,
+        "negative": 21,
+        "positive_rate": 59.62,
+        "unique_files": 40,
+        "unique_file_commit_triples": 52
+      },
+      "lodash": {
+        "split": "train",
+        "total": 10,
+        "positive": 5,
+        "negative": 5,
+        "positive_rate": 50,
+        "unique_files": 6,
+        "unique_file_commit_triples": 10
+      },
+      "zod": {
+        "split": "train",
+        "total": 347,
+        "positive": 189,
+        "negative": 158,
+        "positive_rate": 54.47,
+        "unique_files": 164,
+        "unique_file_commit_triples": 347
+      },
+      "axios": {
+        "split": "train",
+        "total": 290,
+        "positive": 166,
+        "negative": 124,
+        "positive_rate": 57.24,
+        "unique_files": 82,
+        "unique_file_commit_triples": 290
+      },
+      "requests": {
+        "split": "train",
+        "total": 4,
+        "positive": 2,
+        "negative": 2,
+        "positive_rate": 50,
+        "unique_files": 4,
+        "unique_file_commit_triples": 4
+      },
+      "flask": {
+        "split": "train",
+        "total": 2,
+        "positive": 1,
+        "negative": 1,
+        "positive_rate": 50,
+        "unique_files": 2,
+        "unique_file_commit_triples": 2
+      },
+      "bottle": {
+        "split": "train",
+        "total": 50,
+        "positive": 48,
+        "negative": 2,
+        "positive_rate": 96,
+        "unique_files": 2,
+        "unique_file_commit_triples": 50
+      },
+      "gson": {
+        "split": "train",
+        "total": 10,
+        "positive": 5,
+        "negative": 5,
+        "positive_rate": 50,
+        "unique_files": 9,
+        "unique_file_commit_triples": 10
+      },
+      "chalk": {
+        "split": "val",
+        "total": 21,
+        "positive": 15,
+        "negative": 6,
+        "positive_rate": 71.43,
+        "unique_files": 8,
+        "unique_file_commit_triples": 21
+      },
+      "click": {
+        "split": "val",
+        "total": 8,
+        "positive": 4,
+        "negative": 4,
+        "positive_rate": 50,
+        "unique_files": 6,
+        "unique_file_commit_triples": 8
+      },
+      "validator": {
+        "split": "test",
+        "total": 230,
+        "positive": 119,
+        "negative": 111,
+        "positive_rate": 51.74,
+        "unique_files": 98,
+        "unique_file_commit_triples": 230
+      }
+    },
+    "feature_schema_version": "1.0",
+    "features": [
+      "lines",
+      "function_count",
+      "class_count",
+      "import_count",
+      "export_count",
+      "avg_complexity",
+      "max_complexity",
+      "fan_in",
+      "fan_out",
+      "code_smell_count",
+      "has_test"
+    ]
+  },
   "evaluations": [
     {
       "model": "Logistic Regression (Raw)",
@@ -311,79 +463,8 @@
       ]
     }
   ],
-  "intercept": 0.8294944851331408,
-  "platt_calibration": {
-    "enabled": true,
-    "fitted_on": "5_fold_cross_validation_on_train_split",
-    "param_a": -0.9812037165617706,
-    "param_b": -0.3323704321727805
-  },
-  "feature_schema_version": "1.0",
-  "ast_features": {
-    "lines": {
-      "weight": 0.957,
-      "mean": 998.0886,
-      "std": 1952.563
-    },
-    "function_count": {
-      "weight": -0.4329,
-      "mean": 37.5443,
-      "std": 91.7371
-    },
-    "class_count": {
-      "weight": -0.278,
-      "mean": 4.4962,
-      "std": 15.9435
-    },
-    "import_count": {
-      "weight": 1.3524,
-      "mean": 9.9646,
-      "std": 18.7364
-    },
-    "export_count": {
-      "weight": 0.8165,
-      "mean": 36.057,
-      "std": 89.5209
-    },
-    "avg_complexity": {
-      "weight": -0.0807,
-      "mean": 3.3122,
-      "std": 4.4512
-    },
-    "max_complexity": {
-      "weight": 0.7963,
-      "mean": 12.0051,
-      "std": 17.5816
-    },
-    "fan_in": {
-      "weight": -0.0875,
-      "mean": 43.1646,
-      "std": 114.7328
-    },
-    "fan_out": {
-      "weight": -0.5085,
-      "mean": 212.3266,
-      "std": 405.4502
-    },
-    "code_smell_count": {
-      "weight": 1.1824,
-      "mean": 5.8443,
-      "std": 12.8372
-    },
-    "has_test": {
-      "weight": 0.0,
-      "mean": 0.0,
-      "std": 1.0
-    }
-  },
-  "calibration_metrics": {
-    "val_brier": 0.2418,
-    "val_ece": 0.1108,
-    "test_roc_auc": 0.7178,
-    "test_pr_auc": 0.7015
-  },
-  "scoring_bounds": {
-    "min_score": 5.0,
-    "max_score": 98.0
+  "model_selection": {
+    "selected_model": "Logistic Regression (Platt Calibrated)",
+    "rationale": "Zero-latency closed-form in-process execution in Node.js, exact empirical probability calibration via Platt scaling, linear interpretability."
   }
 }

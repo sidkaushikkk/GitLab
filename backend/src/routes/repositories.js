@@ -404,3 +404,19 @@ repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/dependencies', requi
   }
 });
 
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis/predictions
+ * Retrieves ML defect propensity predictions and risk hotspots for a snapshot
+ */
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/predictions', requireAuth, async (req, res, next) => {
+  try {
+    const { snapshotId } = req.params;
+    const predictionsData = await codeIntelligenceService.getAnalysisPredictions(snapshotId, req.user.id);
+
+    return res.status(200).json(predictionsData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+
