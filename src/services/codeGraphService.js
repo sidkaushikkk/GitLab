@@ -1,5 +1,6 @@
 import { mockCodeGraph } from '../data/codeGraphData';
 import { getLatestSnapshotForRepo } from './snapshotHelper';
+import { layoutLayered } from '../components/graph/graphLayout';
 
 function getActiveRepoId(repoId) {
   if (repoId && typeof repoId === 'string') return repoId;
@@ -49,19 +50,8 @@ export const codeGraphService = {
           if (response.ok) {
             const rawGraph = await response.json();
             if (Array.isArray(rawGraph.nodes) && rawGraph.nodes.length > 0) {
-              const N = rawGraph.nodes.length;
-              const cx = 400;
-              const cy = 280;
-              const radiusX = Math.min(320, 160 + N * 18);
-              const radiusY = Math.min(220, 120 + N * 14);
-
-              // Position nodes along an ellipse layout with center-of-gravity
-              const nodes = rawGraph.nodes.map((node, i) => {
-                const angle = N === 1 ? 0 : (i / N) * 2 * Math.PI - Math.PI / 2;
-                const x = Math.round(cx + radiusX * Math.cos(angle));
-                const y = Math.round(cy + radiusY * Math.sin(angle));
+              const rawNodes = rawGraph.nodes.map(node => {
                 const { type, layer } = inferNodeTypeAndLayer(node.label || node.id);
-
                 return {
                   id: node.id,
                   label: node.label || node.id,
@@ -70,9 +60,7 @@ export const codeGraphService = {
                   complexity: 'Medium',
                   risk: 'LOW',
                   loc: 100,
-                  x,
-                  y,
-                  description: `Architectural node ${node.label} with live extracted relationships.`
+                  description: `Architectural node ${node.label || node.id} with live extracted relationships.`
                 };
               });
 
@@ -84,6 +72,8 @@ export const codeGraphService = {
                   to: e.target,
                   label: (e.type || 'imports').toLowerCase()
                 }));
+
+              const nodes = layoutLayered(rawNodes, edges);
 
               return { nodes, edges };
             }
