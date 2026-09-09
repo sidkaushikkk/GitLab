@@ -10,6 +10,7 @@ import { PullRequestDetailPage } from '../pages/PullRequestDetailPage';
 import { CodeHealthPage } from '../pages/CodeHealthPage';
 import { SecurityPage } from '../pages/SecurityPage';
 import { ApiReliabilityPage } from '../pages/ApiReliabilityPage';
+import { AlertsPage } from '../pages/AlertsPage';
 import { DependenciesPage } from '../pages/DependenciesPage';
 import { CodeGraphPage } from '../pages/CodeGraphPage';
 import { CodeExplorerPage } from '../pages/CodeExplorerPage';
@@ -32,6 +33,7 @@ export function AppRoutes() {
         <Route path="/code-health" element={<CodeHealthPage />} />
         <Route path="/security" element={<SecurityPage />} />
         <Route path="/api-reliability" element={<ApiReliabilityPage />} />
+        <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/dependencies" element={<DependenciesPage />} />
         <Route path="/code-graph" element={<CodeGraphPage />} />
         <Route path="/code" element={<CodeExplorerPage />} />

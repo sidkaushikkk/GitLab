@@ -10,6 +10,7 @@ import { analyzePullRequest } from './prRiskEngine.js';
 import { defaultStorageProvider } from '../ingestion/storage/LocalStorageProvider.js';
 import { extractRelationships } from './relationshipExtractor.js';
 import { dispatchAndParseFile } from './dispatcher.js';
+import { evaluatePullRequestAlerts } from './alertEngine.js';
 
 export const prAnalysisPipeline = {
   /**
@@ -200,6 +201,14 @@ export const prAnalysisPipeline = {
       }
 
       logger.info({ analysisId, riskScore: analysisResult.riskScore, qualityGate: analysisResult.qualityGate }, 'PR analysis completed successfully');
+
+      // 7b. Evaluate deterministic PR risk alerts and notifications (Checkpoint 13)
+      try {
+        await evaluatePullRequestAlerts(pullRequestId, analysisId, pool);
+        logger.info({ pullRequestId, analysisId }, 'Evaluated PR risk alerts and notifications');
+      } catch (alertErr) {
+        logger.warn({ pullRequestId, analysisId, err: alertErr.message }, 'Non-fatal error evaluating PR alerts');
+      }
 
       return {
         id: analysisId,

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { notificationService } from '../../services/notificationService';
 import {
   GitBranch,
   Search,
@@ -39,7 +40,48 @@ export function TopBar({ onMobileMenuToggle }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
-  const notifications = [];
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadNotifications = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const data = await notificationService.getNotifications({ limit: 10 });
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
+    } catch (err) {
+      console.warn('Could not load notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 20000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.warn('Failed to mark all read:', err);
+    }
+  };
+
+  const handleNotificationClick = async (n) => {
+    if (!n.isRead) {
+      try {
+        await notificationService.markAsRead(n.id);
+        setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, isRead: true } : item));
+        setUnreadCount(c => Math.max(0, c - 1));
+      } catch (err) {
+        console.warn('Failed to mark read:', err);
+      }
+    }
+    setIsNotificationsOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/90 px-4 backdrop-blur-md">
@@ -188,44 +230,74 @@ export function TopBar({ onMobileMenuToggle }) {
             aria-label="Notifications"
           >
             <Bell size={16} />
-            {notifications.length > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-zinc-950" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white px-0.5 ring-2 ring-zinc-950 font-mono">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
             )}
           </button>
 
           {isNotificationsOpen && (
-            <div className="absolute right-0 mt-1.5 w-72 sm:w-80 rounded-lg border border-zinc-800 bg-zinc-900 p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 mt-1.5 w-80 sm:w-96 rounded-lg border border-zinc-800 bg-zinc-900 p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100 font-sans">
               <div className="flex items-center justify-between pb-2 mb-1 border-b border-zinc-800 px-2">
-                <span className="text-xs font-semibold text-zinc-200">Notifications</span>
-                <span className="text-[10px] font-mono text-zinc-500">
-                  {notifications.length > 0 ? `${notifications.length} unread` : 'All caught up'}
-                </span>
+                <span className="text-xs font-semibold text-zinc-200 font-mono">Notifications</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+                  </span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="text-[10px] font-mono text-cyan-400 hover:underline"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="space-y-1">
+
+              <div className="space-y-1 max-h-72 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-zinc-500 font-sans">
-                    No unread notifications
+                  <div className="py-8 text-center text-xs text-zinc-500 font-sans">
+                    No notifications
                   </div>
                 ) : (
                   notifications.map((n) => {
-                    const Icon = n.icon;
+                    const sevColor = n.severity === 'CRITICAL' ? 'text-rose-400 bg-rose-500/10' :
+                      n.severity === 'HIGH' ? 'text-amber-400 bg-amber-500/10' : 'text-cyan-400 bg-cyan-500/10';
                     return (
                       <Link
                         key={n.id}
-                        to={n.link}
-                        onClick={() => setIsNotificationsOpen(false)}
-                        className="flex items-start gap-2.5 p-2 rounded-md hover:bg-zinc-850 transition-colors text-left"
+                        to="/alerts"
+                        onClick={() => handleNotificationClick(n)}
+                        className={`flex items-start gap-2.5 p-2 rounded-md hover:bg-zinc-850 transition-colors text-left ${
+                          !n.isRead ? 'bg-zinc-850/60 border-l-2 border-cyan-400' : ''
+                        }`}
                       >
-                        <Icon size={16} className={`${n.color} shrink-0 mt-0.5`} />
+                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${sevColor}`}>
+                          {n.severity}
+                        </span>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-medium text-zinc-200 truncate">{n.title}</div>
-                          <div className="text-[11px] text-zinc-400 truncate">{n.desc}</div>
-                          <div className="text-[10px] font-mono text-zinc-500 mt-0.5">{n.time}</div>
+                          <div className="text-[11px] text-zinc-400 line-clamp-1 font-sans">{n.message}</div>
+                          <div className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                            {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {n.repositoryName || 'Platform'}
+                          </div>
                         </div>
                       </Link>
                     );
                   })
                 )}
+              </div>
+
+              <div className="mt-1 pt-1.5 border-t border-zinc-800 text-center font-mono">
+                <Link
+                  to="/alerts"
+                  onClick={() => setIsNotificationsOpen(false)}
+                  className="text-xs text-cyan-400 hover:underline block py-1"
+                >
+                  View All Reliability Alerts →
+                </Link>
               </div>
             </div>
           )}

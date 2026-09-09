@@ -12,6 +12,9 @@ import { securityRouter } from './routes/security.js';
 import { historyRouter } from './routes/history.js';
 import { apiReliabilityRouter } from './routes/apiReliability.js';
 import { webhooksRouter } from './routes/webhooks.js';
+import { alertsRouter } from './routes/alerts.js';
+import { notificationsRouter } from './routes/notifications.js';
+import { notificationPreferencesRouter } from './routes/notificationPreferences.js';
 
 export function createApp() {
   const app = express();
@@ -53,6 +56,9 @@ export function createApp() {
   app.use('/api/repositories/:id/history', historyRouter);
   app.use('/api/repositories/:id/api-reliability', apiReliabilityRouter);
   app.use('/api/webhooks', webhooksRouter);
+  app.use('/api/alerts', alertsRouter);
+  app.use('/api/notifications', notificationsRouter);
+  app.use('/api/notification-preferences', notificationPreferencesRouter);
 
   // Handle 404 for unknown endpoints
   app.use(notFoundHandler);

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { notificationService } from '../services/notificationService';
 import {
   Settings,
   Sliders,
@@ -50,8 +51,34 @@ export function SettingsPage() {
     notifyOnPrReview: true
   });
 
-  const handleSave = () => {
-    addToast('Platform settings saved successfully', 'success');
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    in_app_enabled: true,
+    email_enabled: false,
+    security_alerts: true,
+    pr_risk_alerts: true,
+    code_health_alerts: true,
+    api_reliability_alerts: true,
+    dependency_alerts: true,
+    min_severity: 'LOW'
+  });
+
+  useEffect(() => {
+    notificationService.getPreferences()
+      .then((prefs) => {
+        if (prefs) {
+          setNotificationPrefs(prefs);
+        }
+      })
+      .catch((err) => console.warn('Preferences load error:', err));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await notificationService.updatePreferences(notificationPrefs);
+      addToast('Platform and notification settings saved successfully', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to save settings', 'error');
+    }
   };
 
   const tabs = [
@@ -334,32 +361,103 @@ export function SettingsPage() {
       {/* Tab: Notifications */}
       {activeTab === 'notifications' && (
         <div className="p-6 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-4 text-xs font-mono">
+          <div className="text-sm font-semibold text-zinc-200 border-b border-zinc-800 pb-2">
+            Notification Channels & Preferences (Checkpoint 13)
+          </div>
+
           <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950 border border-zinc-800">
             <div>
-              <span className="font-semibold text-zinc-100 block">Email Alerts on Critical Vulnerabilities</span>
+              <span className="font-semibold text-zinc-100 block">In-App Notification Center</span>
               <span className="text-[11px] text-zinc-400 font-sans">
-                Immediate email notifications dispatched to tech lead and security team.
+                Real-time incident banners and bell badge counter for repository events.
               </span>
             </div>
             <input
               type="checkbox"
-              defaultChecked
+              checked={notificationPrefs.in_app_enabled}
+              onChange={(e) => setNotificationPrefs({ ...notificationPrefs, in_app_enabled: e.target.checked })}
               className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-cyan-500"
             />
           </div>
 
           <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950 border border-zinc-800">
             <div>
-              <span className="font-semibold text-zinc-100 block">Weekly Engineering Intelligence Digest</span>
+              <span className="font-semibold text-zinc-100 block">Outbound Email Notifications</span>
               <span className="text-[11px] text-zinc-400 font-sans">
-                Summary of repository health score trends, technical debt reduction, and open PR bottlenecks.
+                Dispatch external email digests to repository collaborators (requires configured SMTP provider).
               </span>
             </div>
             <input
               type="checkbox"
-              defaultChecked
+              checked={notificationPrefs.email_enabled}
+              onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_enabled: e.target.checked })}
               className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-cyan-500"
             />
+          </div>
+
+          <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-2">
+            <span className="font-semibold text-zinc-100 block">Minimum Notification Severity</span>
+            <span className="text-[11px] text-zinc-400 font-sans block">
+              Only dispatch notifications for alerts at or above this threshold.
+            </span>
+            <select
+              value={notificationPrefs.min_severity}
+              onChange={(e) => setNotificationPrefs({ ...notificationPrefs, min_severity: e.target.value })}
+              className="px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs focus:outline-none font-mono"
+            >
+              <option value="CRITICAL">CRITICAL Only</option>
+              <option value="HIGH">HIGH & CRITICAL</option>
+              <option value="MEDIUM">MEDIUM, HIGH & CRITICAL</option>
+              <option value="LOW">LOW, MEDIUM, HIGH & CRITICAL (All Alerts)</option>
+            </select>
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Alert Categories
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 p-2.5 rounded bg-zinc-950 border border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notificationPrefs.security_alerts}
+                  onChange={(e) => setNotificationPrefs({ ...notificationPrefs, security_alerts: e.target.checked })}
+                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-cyan-500"
+                />
+                <span className="text-zinc-200">Security Advisories (CP9)</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-2.5 rounded bg-zinc-950 border border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notificationPrefs.pr_risk_alerts}
+                  onChange={(e) => setNotificationPrefs({ ...notificationPrefs, pr_risk_alerts: e.target.checked })}
+                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-cyan-500"
+                />
+                <span className="text-zinc-200">PR Risk & Gate Blocks (CP8)</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-2.5 rounded bg-zinc-950 border border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notificationPrefs.api_reliability_alerts}
+                  onChange={(e) => setNotificationPrefs({ ...notificationPrefs, api_reliability_alerts: e.target.checked })}
+                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-cyan-500"
+                />
+                <span className="text-zinc-200">API Reliability Findings (CP11)</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-2.5 rounded bg-zinc-950 border border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notificationPrefs.code_health_alerts}
+                  onChange={(e) => setNotificationPrefs({ ...notificationPrefs, code_health_alerts: e.target.checked })}
+                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-cyan-500"
+                />
+                <span className="text-zinc-200">Code Health & Duplication (CP7/10)</span>
+              </label>
+            </div>
           </div>
         </div>
       )}

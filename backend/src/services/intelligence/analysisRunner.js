@@ -15,6 +15,7 @@ import { scanSnapshotSecurity } from './vulnerabilityMatcher.js';
 import { predictSnapshotDefectRisk } from './mlInference.js';
 import { detectAndPersistSnapshotDuplication } from './duplicationEngine.js';
 import { analyzeAndPersistApiReliability } from './apiDiscoveryEngine.js';
+import { evaluateSnapshotAlerts } from './alertEngine.js';
 
 /**
  * Service orchestrating AST code intelligence analysis and ML-ready feature extraction
@@ -318,6 +319,14 @@ export const codeIntelligenceService = {
         },
         'Analysis run completed successfully'
       );
+
+      // 12b. Evaluate deterministic alerts and notifications (Checkpoint 13)
+      try {
+        await evaluateSnapshotAlerts(snapshotId, repo.id, pool);
+        logger.info({ snapshotId, repositoryId: repo.id }, 'Evaluated deterministic alerts and notifications');
+      } catch (alertErr) {
+        logger.warn({ snapshotId, err: alertErr.message }, 'Non-fatal error evaluating snapshot alerts');
+      }
 
       return this.getAnalysisRunSummary(runId, userId, { reused: false });
     } catch (analysisErr) {
