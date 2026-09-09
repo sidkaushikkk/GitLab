@@ -13,6 +13,7 @@ import {
 } from './lockfileParser.js';
 import { scanSnapshotSecurity } from './vulnerabilityMatcher.js';
 import { predictSnapshotDefectRisk } from './mlInference.js';
+import { detectAndPersistSnapshotDuplication } from './duplicationEngine.js';
 
 /**
  * Service orchestrating AST code intelligence analysis and ML-ready feature extraction
@@ -267,6 +268,13 @@ export const codeIntelligenceService = {
         logger.warn({ snapshotId, err: secErr.message }, 'Non-fatal error performing security vulnerability scan');
       }
 
+      // 11d. Deterministic Source-Code Duplication Detection (Checkpoint 10)
+      try {
+        await detectAndPersistSnapshotDuplication(snapshotId, repo.id, files, { forceReanalyze }, pool);
+      } catch (dupErr) {
+        logger.warn({ snapshotId, err: dupErr.message }, 'Non-fatal error performing code duplication analysis');
+      }
+
       // 12. Complete analysis run in database
       const totalSymbolsCount = allSymbols.length;
       const totalRelsCount = relationships.length;
@@ -341,6 +349,21 @@ export const codeIntelligenceService = {
       [runId]
     );
 
+    // Query duplication summary for this snapshot (Checkpoint 10)
+    const { rows: dupRows } = await pool.query(
+      'SELECT total_source_lines, duplicated_lines, duplication_ratio, clone_count, clone_group_count, intra_file_clones, inter_file_clones FROM snapshot_duplication_summaries WHERE snapshot_id = $1',
+      [row.snapshot_id]
+    );
+    const duplicationSummary = dupRows.length > 0 ? {
+      totalSourceLines: dupRows[0].total_source_lines,
+      duplicatedLines: dupRows[0].duplicated_lines,
+      duplicationRatio: Number(dupRows[0].duplication_ratio),
+      cloneCount: dupRows[0].clone_count,
+      cloneGroupCount: dupRows[0].clone_group_count,
+      intraFileClones: dupRows[0].intra_file_clones,
+      interFileClones: dupRows[0].inter_file_clones
+    } : null;
+
     return {
       id: row.id,
       repositoryId: row.repository_id,
@@ -357,12 +380,14 @@ export const codeIntelligenceService = {
       completedAt: row.completed_at,
       createdAt: row.created_at,
       codeSmells: smellRows,
+      duplication: duplicationSummary,
       summary: {
         filesAnalyzed: row.total_files_analyzed,
         filesFailed: row.total_files_failed,
         symbols: row.total_symbols,
         relationships: row.total_relationships,
-        smells: row.total_smells
+        smells: row.total_smells,
+        duplication: duplicationSummary
       },
       ...extra
     };

@@ -113,12 +113,15 @@ export function AppProvider({ children }) {
     addToast(`Running AST code intelligence scan on ${currentRepo.name}...`, 'info');
 
     try {
-      const snapshots = await repositoryService.getSnapshots(currentRepo.id);
-      let targetSnap = snapshots?.[0];
+      // Ingest latest commit for current branch (resolves newest commit or returns existing snapshot idempotently)
+      let targetSnap = await repositoryService.ingestRepository(currentRepo.id, currentBranch).catch((err) => {
+        console.warn('Ingestion attempt error, falling back to existing snapshot:', err);
+        return null;
+      });
 
       if (!targetSnap) {
-        addToast('Ingesting new repository snapshot...', 'info');
-        targetSnap = await repositoryService.ingestRepository(currentRepo.id, currentBranch);
+        const snapshots = await repositoryService.getSnapshots(currentRepo.id);
+        targetSnap = snapshots?.[0];
       }
 
       if (targetSnap) {

@@ -3,6 +3,8 @@ import { requireAuth } from '../middleware/auth.js';
 import { githubService } from '../services/github.js';
 import { ingestionService } from '../services/ingestion/repositoryIngestion.js';
 import { codeIntelligenceService } from '../services/intelligence/analysisRunner.js';
+import { detectAndPersistSnapshotDuplication } from '../services/intelligence/duplicationEngine.js';
+import { defaultStorageProvider } from '../services/ingestion/storage/LocalStorageProvider.js';
 import { pool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 
@@ -195,12 +197,13 @@ repositoriesRouter.get('/:id', requireAuth, async (req, res, next) => {
 repositoriesRouter.post('/:id/ingest', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { branch } = req.body || {};
+    const { branch, commitSha } = req.body || {};
 
     const snapshot = await ingestionService.ingestRepository({
       repositoryId: id,
       userId: req.user.id,
-      branch
+      branch,
+      commitSha
     });
 
     const statusCode = snapshot.reused ? 200 : 201;
@@ -418,5 +421,95 @@ repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/predictions', requir
     next(err);
   }
 });
+
+/**
+ * GET /api/repositories/:id/snapshots/:snapshotId/duplication
+ * GET /api/repositories/:id/snapshots/:snapshotId/analysis/duplication
+ * Retrieves code duplication findings and summary for a snapshot
+ */
+const getSnapshotDuplicationHandler = async (req, res, next) => {
+  try {
+    const { id, snapshotId } = req.params;
+
+    // Verify ownership
+    const { rows: repoRows } = await pool.query(
+      'SELECT id FROM repositories WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+    if (repoRows.length === 0) {
+      return res.status(404).json({
+        error: { message: 'Repository not found or access denied.', status: 404 }
+      });
+    }
+
+    // Verify snapshot
+    const { rows: snapRows } = await pool.query(
+      'SELECT id FROM repository_snapshots WHERE id = $1 AND repository_id = $2',
+      [snapshotId, id]
+    );
+    if (snapRows.length === 0) {
+      return res.status(404).json({
+        error: { message: 'Snapshot not found for this repository.', status: 404 }
+      });
+    }
+
+    // Query existing summary
+    const { rows: summaryRows } = await pool.query(
+      'SELECT * FROM snapshot_duplication_summaries WHERE snapshot_id = $1',
+      [snapshotId]
+    );
+
+    if (summaryRows.length > 0) {
+      const summary = summaryRows[0];
+      const { rows: cloneRows } = await pool.query(
+        'SELECT clone_hash, clone_type, token_count, line_count, is_intra_file, instances FROM snapshot_duplications WHERE snapshot_id = $1 ORDER BY token_count DESC',
+        [snapshotId]
+      );
+
+      return res.status(200).json({
+        snapshotId,
+        repositoryId: id,
+        summary: {
+          totalSourceLines: summary.total_source_lines,
+          duplicatedLines: summary.duplicated_lines,
+          duplicationRatio: Number(summary.duplication_ratio),
+          duplicationPercentage: Number((Number(summary.duplication_ratio) * 100).toFixed(2)),
+          cloneCount: summary.clone_count,
+          cloneGroupCount: summary.clone_group_count,
+          intraFileClones: summary.intra_file_clones,
+          interFileClones: summary.inter_file_clones
+        },
+        clones: cloneRows.map(r => ({
+          cloneHash: r.clone_hash,
+          cloneType: r.clone_type,
+          tokenCount: r.token_count,
+          lineCount: r.line_count,
+          isIntraFile: r.is_intra_file,
+          instances: r.instances
+        }))
+      });
+    }
+
+    // If not yet computed, compute dynamically
+    const payload = await defaultStorageProvider.getSnapshot(snapshotId);
+    const files = Array.isArray(payload?.files) ? payload.files : [];
+    const result = await detectAndPersistSnapshotDuplication(snapshotId, id, files, {}, pool);
+
+    return res.status(200).json({
+      snapshotId,
+      repositoryId: id,
+      summary: {
+        ...result.summary,
+        duplicationPercentage: Number((result.summary.duplicationRatio * 100).toFixed(2))
+      },
+      clones: result.clones
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+repositoriesRouter.get('/:id/snapshots/:snapshotId/duplication', requireAuth, getSnapshotDuplicationHandler);
+repositoriesRouter.get('/:id/snapshots/:snapshotId/analysis/duplication', requireAuth, getSnapshotDuplicationHandler);
 
 

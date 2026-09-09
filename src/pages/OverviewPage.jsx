@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
 import { analysisService } from "../services/analysisService";
+import { historyService } from "../services/historyService";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend
+} from "recharts";
 import {
   Activity,
   ShieldCheck,
@@ -32,6 +43,7 @@ export function OverviewPage({ headless = false, repoId = null }) {
   const [realMetrics, setRealMetrics] = useState(null);
   const [analysisSummary, setAnalysisSummary] = useState(null);
   const [predictions, setPredictions] = useState(null);
+  const [historyData, setHistoryData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -43,16 +55,18 @@ export function OverviewPage({ headless = false, repoId = null }) {
       }
       setIsLoading(true);
       try {
-        const [hotspotData, summaryData, metricsData, predictionsData] = await Promise.all([
+        const [hotspotData, summaryData, metricsData, predictionsData, histData] = await Promise.all([
           analysisService.getRiskHotspots(targetRepoId),
           analysisService.getAnalysisSummary(targetRepoId),
           analysisService.getCodeMetrics(targetRepoId),
-          analysisService.getPredictions(targetRepoId).catch(() => null)
+          analysisService.getPredictions(targetRepoId).catch(() => null),
+          historyService.getRepositoryHistory(targetRepoId).catch(() => null)
         ]);
         setHotspots(hotspotData || []);
         setAnalysisSummary(summaryData || null);
         setRealMetrics(metricsData || null);
         setPredictions(predictionsData || null);
+        setHistoryData(histData || null);
       } finally {
         setIsLoading(false);
       }
@@ -271,11 +285,72 @@ export function OverviewPage({ headless = false, repoId = null }) {
             </div>
           </div>
 
-          <WillBeIntegratedSoon
-            title="Historical trajectory tracking will be integrated soon"
-            description="Continuous time-series tracking across snapshots and commits is planned. Deterministic snapshot health is displayed above."
-            className="my-auto py-12"
-          />
+          {historyData && historyData.state === 'TRAJECTORY_AVAILABLE' && historyData.timeline.length >= 2 ? (
+            <div className="h-60 w-full font-mono text-xs">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={historyData.timeline.map(pt => ({
+                    commit: pt.commitSha ? pt.commitSha.substring(0, 7) : 'snap',
+                    Maintainability: pt.metrics.maintainability,
+                    Security: pt.metrics.securityScore,
+                    Complexity: pt.metrics.avgComplexity,
+                    Duplication: Number((pt.metrics.duplicationRatio * 100).toFixed(1))
+                  }))}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <XAxis dataKey="commit" stroke="#71717a" tickLine={false} />
+                  <YAxis stroke="#71717a" domain={[0, 100]} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#18181b",
+                      borderColor: "#27272a",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      fontFamily: "JetBrains Mono, monospace"
+                    }}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="Maintainability" stroke="#06b6d4" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="Security" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="Complexity" stroke="#f43f5e" strokeWidth={1.5} dot={{ r: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : historyData && (historyData.state === 'BASELINE' || historyData.timeline.length === 1) ? (
+            <div className="h-60 flex flex-col justify-center border border-dashed border-zinc-800 rounded-lg p-5 bg-zinc-950/40 font-mono text-xs">
+              <div className="flex items-center gap-2 text-cyan-400 font-semibold mb-1.5">
+                <Activity size={15} />
+                <span>Baseline Established (1 Snapshot)</span>
+              </div>
+              <p className="text-zinc-400 text-[11px] mb-3 leading-relaxed">
+                Historical comparison requires at least two analyzed snapshots. Current snapshot represents your engineering baseline.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-500 uppercase block">Maintainability</span>
+                  <span className="text-base font-bold text-cyan-300 mt-0.5 block">{historyData.timeline[0]?.metrics?.maintainability || 100}/100</span>
+                </div>
+                <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-500 uppercase block">Avg Complexity</span>
+                  <span className="text-base font-bold text-rose-400 mt-0.5 block">{historyData.timeline[0]?.metrics?.avgComplexity || 0}</span>
+                </div>
+                <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-500 block uppercase">Duplication</span>
+                  <span className="text-base font-bold text-amber-400 mt-0.5 block">{(historyData.timeline[0]?.metrics?.duplicationRatio * 100).toFixed(1)}%</span>
+                </div>
+                <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-500 block uppercase">Security</span>
+                  <span className="text-base font-bold text-emerald-400 mt-0.5 block">{historyData.timeline[0]?.metrics?.securityScore || 100}/100</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-60 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-lg text-xs font-mono text-zinc-500 text-center p-4">
+              <Clock size={24} className="mb-2 text-zinc-600" />
+              <span>Historical trajectory will be recorded as snapshots are ingested.</span>
+            </div>
+          )}
         </div>
 
         {/* Risk Overview Breakdown */}

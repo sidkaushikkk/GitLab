@@ -25,6 +25,7 @@ import { DependenciesPage } from './DependenciesPage';
 import { ApiReliabilityPage } from './ApiReliabilityPage';
 import { PullRequestsPage } from './PullRequestsPage';
 import { CodeGraphPage } from './CodeGraphPage';
+import { HistoryComparePage } from './HistoryComparePage';
 
 export function RepositoryDetailPage() {
   const { id } = useParams();
@@ -67,7 +68,8 @@ export function RepositoryDetailPage() {
     { id: 'dependencies', label: 'Dependencies', icon: Boxes },
     { id: 'apis', label: 'APIs', icon: Zap },
     { id: 'pulls', label: 'Pull Requests', icon: GitPullRequest },
-    { id: 'architecture', label: 'Architecture', icon: Network }
+    { id: 'architecture', label: 'Architecture', icon: Network },
+    { id: 'history', label: 'History & Compare', icon: Clock }
   ];
 
   return (
@@ -121,6 +123,7 @@ export function RepositoryDetailPage() {
         {activeTab === 'apis' && <ApiReliabilityPage headless repoId={id} />}
         {activeTab === 'pulls' && <PullRequestsPage headless repoId={id} />}
         {activeTab === 'architecture' && <CodeGraphPage headless repoId={id} />}
+        {activeTab === 'history' && <HistoryComparePage headless repoId={id} />}
       </div>
     </div>
   );

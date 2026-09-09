@@ -200,6 +200,13 @@ export const repositoryService = {
   },
 
   /**
+   * Get all snapshots for a connected repository (alias for getSnapshots)
+   */
+  async getRepositorySnapshots(repositoryId) {
+    return this.getSnapshots(repositoryId);
+  },
+
+  /**
    * Get single snapshot details
    */
   async getSnapshotById(repositoryId, snapshotId, includePayload = false) {

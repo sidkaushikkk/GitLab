@@ -41,6 +41,35 @@ export const analysisService = {
   },
 
   /**
+   * Get latest completed snapshot duplication data
+   */
+  async getDuplication(repoId, snapshotId = null) {
+    const targetRepoId = getActiveRepoId(repoId);
+    if (!targetRepoId) return null;
+
+    let snapId = snapshotId;
+    if (!snapId) {
+      const snap = await getLatestSnapshotForRepo(targetRepoId);
+      snapId = snap?.id;
+    }
+    if (!snapId) return null;
+
+    try {
+      const response = await fetch(`/api/repositories/${targetRepoId}/snapshots/${snapId}/duplication`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      // Fallback
+    }
+    return null;
+  },
+
+  /**
    * Get granular file and function metrics from backend
    */
   async getCodeMetrics(repoId, query = {}) {
@@ -243,20 +272,57 @@ export const analysisService = {
     let files = [];
 
     if (targetRepoId) {
-      const [metricsData, predData] = await Promise.all([
+      const [metricsData, predData, dupData] = await Promise.all([
         this.getCodeMetrics(targetRepoId, {
           entityType: 'file',
           sortBy: filter.sortBy || 'complexity',
           sortDir: 'desc',
           limit: 100
         }),
-        this.getPredictions(targetRepoId).catch(() => null)
+        this.getPredictions(targetRepoId).catch(() => null),
+        this.getDuplication(targetRepoId).catch(() => null)
       ]);
 
       const predMap = new Map();
       if (predData && Array.isArray(predData.predictions)) {
         for (const p of predData.predictions) {
           predMap.set(p.filePath, p);
+        }
+      }
+
+      // Compute file-level duplication via 1D interval union
+      const fileDupMap = new Map();
+      if (dupData && Array.isArray(dupData.clones)) {
+        const fileIntervals = new Map();
+        for (const clone of dupData.clones) {
+          if (Array.isArray(clone.instances)) {
+            for (const inst of clone.instances) {
+              if (inst.filePath && inst.startLine && inst.endLine) {
+                if (!fileIntervals.has(inst.filePath)) {
+                  fileIntervals.set(inst.filePath, []);
+                }
+                fileIntervals.get(inst.filePath).push([inst.startLine, inst.endLine]);
+              }
+            }
+          }
+        }
+        for (const [filePath, intervals] of fileIntervals.entries()) {
+          intervals.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+          let totalDupLines = 0;
+          let curStart = intervals[0][0];
+          let curEnd = intervals[0][1];
+          for (let i = 1; i < intervals.length; i++) {
+            const [s, e] = intervals[i];
+            if (s <= curEnd) {
+              curEnd = Math.max(curEnd, e);
+            } else {
+              totalDupLines += (curEnd - curStart + 1);
+              curStart = s;
+              curEnd = e;
+            }
+          }
+          totalDupLines += (curEnd - curStart + 1);
+          fileDupMap.set(filePath, totalDupLines);
         }
       }
 
@@ -271,6 +337,9 @@ export const analysisService = {
           // Deterministic maintainability index (0-100)
           const maintainability = Math.max(10, Math.min(100, Math.round(100 - (complexity * 2.5) - (nesting * 4) - (smells * 5))));
           const risk = pred?.riskCategory || (complexity > 15 || smells >= 3 ? 'CRITICAL' : complexity > 8 || smells >= 1 ? 'HIGH' : complexity > 4 ? 'MEDIUM' : 'LOW');
+          const dupLines = fileDupMap.get(item.entityId) || 0;
+          const totalLines = item.lines || 1;
+          const dupPct = dupLines > 0 ? Number(((dupLines / totalLines) * 100).toFixed(1)) : 0;
 
           return {
             file: item.entityId,
@@ -279,7 +348,9 @@ export const analysisService = {
             nesting,
             maintainability,
             issues: smells,
-            duplication: null,
+            duplication: dupLines > 0 ? `${dupPct}%` : '0%',
+            duplicatedLines: dupLines,
+            duplicationPercentage: dupPct,
             testCoverage: hasTest ? 'Guarded' : 'No Tests',
             risk,
             debtScore: item.debtScore ?? Math.round((complexity * 2) + (nesting * 3) + (smells * 5) - (hasTest ? 5 : 0)),

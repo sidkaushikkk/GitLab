@@ -15,6 +15,7 @@ export function mapSnapshotRow(row, extra = {}) {
     id: row.id,
     repositoryId: row.repository_id,
     commitSha: row.commit_sha,
+    commit_sha: row.commit_sha,
     branch: row.branch,
     status: row.status,
     totalFiles: row.total_files,
@@ -23,8 +24,12 @@ export function mapSnapshotRow(row, extra = {}) {
     totalBytes: parseInt(row.total_bytes, 10) || 0,
     storageKey: row.storage_key,
     errorMessage: row.error_message,
+    commitTimestamp: row.commit_timestamp || null,
+    commit_timestamp: row.commit_timestamp || null,
     createdAt: row.created_at,
+    created_at: row.created_at,
     completedAt: row.completed_at,
+    completed_at: row.completed_at,
     ...extra
   };
 }
@@ -48,6 +53,7 @@ export const ingestionService = {
     repositoryId,
     userId,
     branch = null,
+    commitSha: explicitCommitSha = null,
     maxFileSizeBytes = env.maxFileSizeBytes,
     concurrency = env.githubFileFetchConcurrency,
     storageProvider = defaultStorageProvider
@@ -73,7 +79,7 @@ export const ingestionService = {
     );
 
     // 2. Resolve target branch to exact commit SHA
-    const commitSha = await githubTree.resolveBranchCommit(userId, repo.owner, repo.name, targetBranch);
+    const commitSha = explicitCommitSha || await githubTree.resolveBranchCommit(userId, repo.owner, repo.name, targetBranch);
     logger.info({ repositoryId: repo.id, branch: targetBranch, commitSha }, 'Resolved commit SHA');
 
     // 3. Idempotency Check: Return existing completed snapshot if already generated for this commit
