@@ -110,8 +110,23 @@ export function DependenciesPage({ headless = false, repoId = null }) {
     },
     {
       header: "Vulnerability Advisory",
-      key: "vulnerability",
-      render: () => <FeatureRoadmapBadge label="Will be integrated soon" />
+      key: "vulnerabilitiesCount",
+      render: (val, row) => {
+        if (val && val > 0) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-rose-950/60 text-rose-300 border border-rose-800/60">
+              <AlertTriangle size={12} className="text-rose-400 shrink-0" />
+              {val} {val === 1 ? 'Advisory' : 'Advisories'} ({row.maxSeverity})
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-900/40">
+            <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+            Clean (0 Advisories)
+          </span>
+        );
+      }
     }
   ];
 
@@ -153,13 +168,23 @@ export function DependenciesPage({ headless = false, repoId = null }) {
           </div>
           <span className="text-[10px] text-zinc-500 block">Registry version diffs</span>
         </div>
-        {/* Vulnerable -> Will be integrated soon */}
-        <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between">
+        {/* Vulnerable Packages */}
+        <div className={`p-3.5 rounded-xl border flex flex-col justify-between ${
+          (healthOverview?.vulnerable || 0) > 0
+            ? "bg-rose-950/20 border-rose-900/40"
+            : "bg-zinc-900/60 border-zinc-800"
+        }`}>
           <div>
             <span className="text-zinc-500 text-[10px] uppercase block">Vulnerable Packages</span>
-            <span className="text-xs font-bold text-cyan-400 mt-1 block">Will be integrated soon</span>
+            <span className={`text-2xl font-bold mt-0.5 block ${
+              (healthOverview?.vulnerable || 0) > 0 ? "text-rose-400" : "text-emerald-400"
+            }`}>
+              {healthOverview?.vulnerable ?? 0}
+            </span>
           </div>
-          <span className="text-[10px] text-zinc-500 block">Live CVE scanning</span>
+          <span className="text-[10px] text-zinc-400 block mt-1">
+            {(healthOverview?.highRisk || 0) > 0 ? `${healthOverview.highRisk} Critical/High` : 'Live OSV/CVE intelligence'}
+          </span>
         </div>
         {/* License Compliance */}
         <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between">

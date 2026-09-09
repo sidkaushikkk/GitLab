@@ -134,6 +134,29 @@ export function FindingDrawer({ finding, onClose, onNavigateToFile }) {
               </pre>
             </div>
           </div>
+
+          {/* Section: References */}
+          {Array.isArray(finding.references) && finding.references.length > 0 && (
+            <div>
+              <h4 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+                Upstream Advisory References
+              </h4>
+              <div className="space-y-1.5">
+                {finding.references.slice(0, 5).map((ref, idx) => (
+                  <a
+                    key={idx}
+                    href={ref.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 font-mono text-[11px] truncate p-1.5 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors"
+                  >
+                    <ExternalLink size={12} className="shrink-0" />
+                    <span className="truncate">{ref.url}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

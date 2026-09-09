@@ -6,6 +6,12 @@ import { extractRelationships } from './relationshipExtractor.js';
 import { detectCodeSmells } from './codeSmells.js';
 import { extractFeatures, FEATURE_SCHEMA_VERSION } from './featureExtractor.js';
 import { parseManifestFile } from './manifestParser.js';
+import {
+  extractDependenciesFromSnapshotFiles,
+  persistSnapshotDependencies,
+  getPersistedSnapshotDependencies
+} from './lockfileParser.js';
+import { scanSnapshotSecurity } from './vulnerabilityMatcher.js';
 import { predictSnapshotDefectRisk } from './mlInference.js';
 
 /**
@@ -237,6 +243,28 @@ export const codeIntelligenceService = {
             feat.featureValue
           ]
         );
+      }
+
+      // 11b. Extract and persist normalized snapshot dependencies (manifests & lockfiles)
+      try {
+        const { dependencies: snapshotDeps } = extractDependenciesFromSnapshotFiles(files, {
+          snapshotId,
+          repositoryId: repo.id
+        });
+
+        if (snapshotDeps.length > 0) {
+          await persistSnapshotDependencies(snapshotId, repo.id, snapshotDeps, pool);
+          logger.info({ snapshotId, totalDependencies: snapshotDeps.length }, 'Persisted snapshot dependencies to PostgreSQL');
+        }
+      } catch (depErr) {
+        logger.warn({ snapshotId, err: depErr.message }, 'Non-fatal error extracting/persisting snapshot dependencies');
+      }
+
+      // 11c. Live Security Vulnerability Intelligence Scan (Checkpoint 9)
+      try {
+        await scanSnapshotSecurity(snapshotId, repo.id, {}, pool);
+      } catch (secErr) {
+        logger.warn({ snapshotId, err: secErr.message }, 'Non-fatal error performing security vulnerability scan');
       }
 
       // 12. Complete analysis run in database
@@ -684,11 +712,43 @@ export const codeIntelligenceService = {
     const files = Array.isArray(snapshotPayload.files) ? snapshotPayload.files : [];
 
     const manifests = [];
-    const allDependencies = [];
+    let allDependencies = [];
 
+    // Check if dependencies were already persisted to PostgreSQL for this snapshot
+    let persistedDeps = await getPersistedSnapshotDependencies(snapshotId);
+    if (persistedDeps.length === 0 && files.length > 0) {
+      const extracted = extractDependenciesFromSnapshotFiles(files, {
+        snapshotId,
+        repositoryId: runRows[0].repository_id
+      });
+      if (extracted.dependencies.length > 0) {
+        await persistSnapshotDependencies(snapshotId, runRows[0].repository_id, extracted.dependencies, pool);
+        persistedDeps = await getPersistedSnapshotDependencies(snapshotId);
+      }
+    }
+
+    if (persistedDeps.length > 0) {
+      allDependencies = persistedDeps.map(d => ({
+        name: d.packageName,
+        packageName: d.packageName,
+        normalizedName: d.normalizedName,
+        version: d.version,
+        versionSpecifier: d.versionSpecifier,
+        type: d.dependencyType,
+        dependencyType: d.dependencyType,
+        isDirect: d.isDirect,
+        depth: d.depth,
+        parentPackage: d.parentPackage,
+        ecosystem: d.ecosystem,
+        manifestPath: d.sourceFile,
+        sourceFile: d.sourceFile
+      }));
+    }
+
+    // Also collect manifests metadata
     for (const file of files) {
       const parsed = parseManifestFile(file);
-      if (parsed) {
+      if (parsed && !parsed.isLockfile) {
         manifests.push({
           manifestPath: parsed.manifestPath,
           ecosystem: parsed.ecosystem,
@@ -698,7 +758,8 @@ export const codeIntelligenceService = {
           dependenciesCount: parsed.dependenciesCount
         });
 
-        if (Array.isArray(parsed.dependencies)) {
+        // Fallback for direct dependencies if no lockfile was present and nothing was persisted
+        if (allDependencies.length === 0 && Array.isArray(parsed.dependencies)) {
           allDependencies.push(...parsed.dependencies);
         }
       }

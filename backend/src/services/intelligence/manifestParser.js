@@ -1,3 +1,5 @@
+import { parsePackageLock } from './lockfileParser.js';
+
 /**
  * Deterministic parser for package manifests across ecosystems (npm, pypi, maven)
  */
@@ -167,6 +169,18 @@ export function parseJavaManifest(filePath, content) {
 export function parseManifestFile(file) {
   const { path: filePath, content } = file;
   const lowerPath = (filePath || '').toLowerCase();
+
+  if (lowerPath.endsWith('package-lock.json') && !lowerPath.includes('node_modules')) {
+    const res = parsePackageLock(filePath, content);
+    return {
+      manifestPath: filePath,
+      ecosystem: 'npm',
+      isLockfile: true,
+      lockfileVersion: res.lockfileVersion,
+      dependenciesCount: res.totalDependencies,
+      dependencies: res.dependencies
+    };
+  }
 
   if (lowerPath.endsWith('package.json') && !lowerPath.includes('node_modules')) {
     return parsePackageJson(filePath, content);

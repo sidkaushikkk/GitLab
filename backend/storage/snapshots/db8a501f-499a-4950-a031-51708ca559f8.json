@@ -1,0 +1,48 @@
+{
+  "snapshotId": "db8a501f-499a-4950-a031-51708ca559f8",
+  "repository": {
+    "id": "d9c52504-a5d8-4102-8f22-e6125964d2da",
+    "fullName": "AcmeOrg/ecommerce-core"
+  },
+  "source": {
+    "commitSha": "c0ffee1234567890c0ffee1234567890c0ffee01",
+    "branch": "main"
+  },
+  "files": [
+    {
+      "path": "package.json",
+      "language": "json",
+      "content": "{\n  \"name\": \"ecommerce-core\",\n  \"version\": \"2.1.0\",\n  \"license\": \"MIT\",\n  \"dependencies\": {\n    \"express\": \"^4.19.2\",\n    \"lodash\": \"^4.17.21\"\n  },\n  \"devDependencies\": {\n    \"vitest\": \"^1.6.0\"\n  }\n}"
+    },
+    {
+      "path": "requirements.txt",
+      "language": "text",
+      "content": "flask==3.0.3\nrequests>=2.31.0\npytest==8.2.0\n"
+    },
+    {
+      "path": "src/moduleA.js",
+      "language": "javascript",
+      "content": "\nimport { helperB } from \"./moduleB.js\";\n\nexport function helperA(x) {\n    if (x > 0) {\n        return helperB(x - 1);\n    }\n    return 0;\n}\n"
+    },
+    {
+      "path": "src/moduleB.js",
+      "language": "javascript",
+      "content": "\nimport { helperA } from \"./moduleA.js\";\n\nexport function helperB(y) {\n    if (y > 0) {\n        return helperA(y - 1);\n    }\n    return 1;\n}\n"
+    },
+    {
+      "path": "src/calculator.js",
+      "language": "javascript",
+      "content": "\nexport function evaluateRules(val, type, flags) {\n    let score = 0;\n    if (val > 10) { score += 1; }\n    if (val > 20) { score += 2; }\n    if (val > 30) { score += 3; }\n    if (val > 40) { score += 4; }\n    if (type === \"A\") { score += 5; }\n    else if (type === \"B\") { score += 10; }\n    else if (type === \"C\") { score += 15; }\n    if (flags && flags.active) { score += 20; }\n    if (flags && flags.verified) { score += 25; }\n    if (flags && flags.admin) { score += 50; }\n    if (score > 100) { score = 100; }\n    return score;\n}\n"
+    },
+    {
+      "path": "src/deepNesting.js",
+      "language": "javascript",
+      "content": "\nexport function deepProcess(a, b, c, d, e) {\n    if (a) {\n        if (b) {\n            if (c) {\n                if (d) {\n                    if (e) {\n                        return a + b + c + d + e;\n                    }\n                }\n            }\n        }\n    }\n    return 0;\n}\n"
+    },
+    {
+      "path": "test/calculator.test.js",
+      "language": "javascript",
+      "content": "\nimport { evaluateRules } from \"../src/calculator.js\";\n\nexport function testEvaluation() {\n    return evaluateRules(15, \"A\", { active: true });\n}\n"
+    }
+  ]
+}

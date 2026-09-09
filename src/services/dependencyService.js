@@ -32,57 +32,78 @@ export const dependencyService = {
    */
   async getDependencies(filter = {}) {
     const targetRepoId = getActiveRepoId(filter.repoId);
-    if (targetRepoId) {
-      const snap = await getLatestSnapshotForRepo(targetRepoId);
-      if (snap) {
-        try {
-          const response = await fetch(`/api/repositories/${targetRepoId}/snapshots/${snap.id}/analysis/dependencies`, {
-            headers: { 'Accept': 'application/json' },
-            credentials: 'include',
-            cache: 'no-store'
-          });
+    if (!targetRepoId) return [];
 
-          if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data.dependencies) && data.dependencies.length > 0) {
-              let deps = data.dependencies.map((dep) => {
-                const cat = inferCategory(dep);
-                const manifest = data.manifests?.find(m => m.manifestPath === dep.manifestPath);
-
-                // Usage count calculation from internal imports
-                const importsCount = (data.internalImports || []).filter(imp =>
-                  (imp.targetFilePath || '').toLowerCase().includes(dep.name.toLowerCase()) ||
-                  (imp.symbolsImported || []).some(s => s.toLowerCase().includes(dep.name.toLowerCase()))
-                ).length;
-
-                return {
-                  name: dep.name,
-                  version: dep.version,
-                  latest: null, // Registry version checking not yet integrated
-                  risk: null, // Vulnerability scanning not yet integrated
-                  vulnerability: null,
-                  vulnerabilitySeverity: null,
-                  usageCount: importsCount,
-                  license: manifest?.license || null,
-                  direct: dep.type === 'direct',
-                  category: cat,
-                  upgradeRecommendation: null
-                };
-              });
-
-              if (filter.search) {
-                const q = filter.search.toLowerCase();
-                deps = deps.filter(d =>
-                  d.name.toLowerCase().includes(q) ||
-                  d.category.toLowerCase().includes(q)
-                );
-              }
-              return deps;
-            }
+    let secDepMap = new Map();
+    try {
+      const secRes = await fetch(`/api/repositories/${targetRepoId}/security/dependencies`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      if (secRes.ok) {
+        const secData = await secRes.json();
+        if (Array.isArray(secData.dependencies)) {
+          for (const sd of secData.dependencies) {
+            secDepMap.set((sd.name || '').toLowerCase(), sd);
           }
-        } catch (e) {
-          // Graceful fallback
         }
+      }
+    } catch (e) {
+      // Non-fatal
+    }
+
+    const snap = await getLatestSnapshotForRepo(targetRepoId);
+    if (snap) {
+      try {
+        const response = await fetch(`/api/repositories/${targetRepoId}/snapshots/${snap.id}/analysis/dependencies`, {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data.dependencies) && data.dependencies.length > 0) {
+            let deps = data.dependencies.map((dep) => {
+              const cat = inferCategory(dep);
+              const manifest = data.manifests?.find(m => m.manifestPath === dep.manifestPath);
+              const secInfo = secDepMap.get((dep.name || '').toLowerCase());
+
+              // Usage count calculation from internal imports
+              const importsCount = (data.internalImports || []).filter(imp =>
+                (imp.targetFilePath || '').toLowerCase().includes(dep.name.toLowerCase()) ||
+                (imp.symbolsImported || []).some(s => s.toLowerCase().includes(dep.name.toLowerCase()))
+              ).length;
+
+              return {
+                name: dep.name,
+                version: dep.version,
+                latest: null,
+                risk: secInfo?.maxSeverity || null,
+                vulnerabilitiesCount: secInfo?.vulnerabilitiesCount || 0,
+                maxSeverity: secInfo?.maxSeverity || null,
+                vulnerabilities: secInfo?.vulnerabilities || [],
+                usageCount: importsCount,
+                license: manifest?.license || null,
+                direct: dep.type === 'direct',
+                category: cat,
+                upgradeRecommendation: null
+              };
+            });
+
+            if (filter.search) {
+              const q = filter.search.toLowerCase();
+              deps = deps.filter(d =>
+                d.name.toLowerCase().includes(q) ||
+                d.category.toLowerCase().includes(q)
+              );
+            }
+            return deps;
+          }
+        }
+      } catch (e) {
+        // Graceful fallback
       }
     }
 
@@ -94,42 +115,59 @@ export const dependencyService = {
    */
   async getHealthOverview(repoId = null) {
     const targetRepoId = getActiveRepoId(repoId);
-    if (targetRepoId) {
-      const snap = await getLatestSnapshotForRepo(targetRepoId);
-      if (snap) {
-        try {
-          const response = await fetch(`/api/repositories/${targetRepoId}/snapshots/${snap.id}/analysis/dependencies`, {
-            headers: { 'Accept': 'application/json' },
-            credentials: 'include',
-            cache: 'no-store'
-          });
+    if (!targetRepoId) return null;
 
-          if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data.dependencies) && data.dependencies.length > 0) {
-              const deps = data.dependencies;
-              const directCount = deps.filter(d => d.type === 'direct').length;
-              const transCount = deps.filter(d => d.type !== 'direct').length;
+    let secOverview = null;
+    try {
+      const secRes = await fetch(`/api/repositories/${targetRepoId}/security`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      if (secRes.ok) {
+        secOverview = await secRes.json();
+      }
+    } catch (e) {
+      // Non-fatal
+    }
 
-              const licenses = (data.manifests || []).map(m => m.license).filter(Boolean);
-              const licenseSummary = licenses.length > 0
-                ? [...new Set(licenses)].join(' / ')
-                : null;
+    const snap = await getLatestSnapshotForRepo(targetRepoId);
+    if (snap) {
+      try {
+        const response = await fetch(`/api/repositories/${targetRepoId}/snapshots/${snap.id}/analysis/dependencies`, {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store'
+        });
 
-              return {
-                total: deps.length,
-                outdated: null, // Outdated scanning not yet integrated
-                vulnerable: null, // CVE scanning not yet integrated
-                highRisk: null,
-                licenseCompliance: licenseSummary,
-                directDependencies: directCount,
-                transitiveDependencies: transCount
-              };
-            }
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data.dependencies) && data.dependencies.length > 0) {
+            const deps = data.dependencies;
+            const directCount = deps.filter(d => d.type === 'direct').length;
+            const transCount = deps.filter(d => d.type !== 'direct').length;
+
+            const licenses = (data.manifests || []).map(m => m.license).filter(Boolean);
+            const licenseSummary = licenses.length > 0
+              ? [...new Set(licenses)].join(' / ')
+              : null;
+
+            const vulnerablePackages = secOverview?.posture?.vulnerablePackages ?? 0;
+            const highRiskCount = (secOverview?.posture?.severityBreakdown?.critical || 0) + (secOverview?.posture?.severityBreakdown?.high || 0);
+
+            return {
+              total: deps.length,
+              outdated: null,
+              vulnerable: vulnerablePackages,
+              highRisk: highRiskCount,
+              licenseCompliance: licenseSummary,
+              directDependencies: directCount,
+              transitiveDependencies: transCount
+            };
           }
-        } catch (e) {
-          // Graceful fallback
         }
+      } catch (e) {
+        // Graceful fallback
       }
     }
 
