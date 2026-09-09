@@ -10,6 +10,7 @@ import { repositoriesRouter } from './routes/repositories.js';
 import { pullRequestsRouter } from './routes/pullRequests.js';
 import { securityRouter } from './routes/security.js';
 import { historyRouter } from './routes/history.js';
+import { apiReliabilityRouter } from './routes/apiReliability.js';
 import { webhooksRouter } from './routes/webhooks.js';
 
 export function createApp() {
@@ -50,6 +51,7 @@ export function createApp() {
   app.use('/api/repositories/:id/pulls', pullRequestsRouter);
   app.use('/api/repositories/:id/security', securityRouter);
   app.use('/api/repositories/:id/history', historyRouter);
+  app.use('/api/repositories/:id/api-reliability', apiReliabilityRouter);
   app.use('/api/webhooks', webhooksRouter);
 
   // Handle 404 for unknown endpoints

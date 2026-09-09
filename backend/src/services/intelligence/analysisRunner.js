@@ -14,6 +14,7 @@ import {
 import { scanSnapshotSecurity } from './vulnerabilityMatcher.js';
 import { predictSnapshotDefectRisk } from './mlInference.js';
 import { detectAndPersistSnapshotDuplication } from './duplicationEngine.js';
+import { analyzeAndPersistApiReliability } from './apiDiscoveryEngine.js';
 
 /**
  * Service orchestrating AST code intelligence analysis and ML-ready feature extraction
@@ -273,6 +274,13 @@ export const codeIntelligenceService = {
         await detectAndPersistSnapshotDuplication(snapshotId, repo.id, files, { forceReanalyze }, pool);
       } catch (dupErr) {
         logger.warn({ snapshotId, err: dupErr.message }, 'Non-fatal error performing code duplication analysis');
+      }
+
+      // 11e. Static API Reliability & Endpoint Contract Intelligence (Checkpoint 11)
+      try {
+        await analyzeAndPersistApiReliability(snapshotId, repo.id, files, { parsedFiles, allSymbols, relationships }, pool);
+      } catch (apiErr) {
+        logger.warn({ snapshotId, err: apiErr.message }, 'Non-fatal error performing API reliability analysis');
       }
 
       // 12. Complete analysis run in database
