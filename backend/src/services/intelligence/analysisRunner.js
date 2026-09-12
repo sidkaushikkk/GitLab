@@ -87,6 +87,43 @@ export const codeIntelligenceService = {
       }
     }
 
+    // 3b. Concurrency Guard & Stale Run Recovery
+    const { rows: activeRuns } = await pool.query(
+      `SELECT id, started_at, EXTRACT(EPOCH FROM (NOW() - started_at)) AS age_seconds
+       FROM analysis_runs
+       WHERE repository_id = $1 AND snapshot_id = $2 AND status = 'running'
+       ORDER BY started_at DESC`,
+      [repositoryId, snapshotId]
+    );
+
+    const STALE_RUN_TIMEOUT_SECONDS = 900; // 15 minutes
+
+    for (const activeRun of activeRuns) {
+      const ageSeconds = parseFloat(activeRun.age_seconds) || 0;
+      if (ageSeconds > STALE_RUN_TIMEOUT_SECONDS) {
+        logger.warn(
+          { runId: activeRun.id, ageSeconds },
+          'Recovering stale analysis run (>15 mins old) by marking as failed'
+        );
+        await pool.query(
+          `UPDATE analysis_runs
+           SET status = 'failed',
+               error_message = 'Analysis timed out or worker terminated unexpectedly (stale run auto-recovery)',
+               completed_at = NOW()
+           WHERE id = $1`,
+          [activeRun.id]
+        );
+      } else {
+        logger.warn(
+          { runId: activeRun.id, ageSeconds },
+          'Rejecting concurrent analysis request for snapshot already running'
+        );
+        const conflictErr = new Error('An analysis run is already in progress for this snapshot.');
+        conflictErr.status = 409;
+        throw conflictErr;
+      }
+    }
+
     // 4. Create analysis run in database
     const { rows: newRunRows } = await pool.query(
       `INSERT INTO analysis_runs (

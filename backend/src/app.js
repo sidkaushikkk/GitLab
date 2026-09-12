@@ -15,9 +15,17 @@ import { webhooksRouter } from './routes/webhooks.js';
 import { alertsRouter } from './routes/alerts.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { notificationPreferencesRouter } from './routes/notificationPreferences.js';
+import { securityHeaders, requestId, rateLimiter } from './middleware/security.js';
 
 export function createApp() {
   const app = express();
+
+  // Apply enterprise security headers and request correlation
+  app.use(securityHeaders);
+  app.use(requestId);
+
+  // Rate Limiting (in-memory sliding window)
+  app.use(rateLimiter.middleware());
 
   // CORS configuration allowing cookies/credentials from the frontend origin
   app.use(cors({
@@ -30,11 +38,12 @@ export function createApp() {
 
   // Parse JSON and form bodies while preserving raw request body for HMAC verification
   app.use(express.json({
+    limit: '15mb',
     verify: (req, res, buf) => {
       req.rawBody = buf;
     }
   }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
   // HTTP Request Logging
   app.use(requestLogger);

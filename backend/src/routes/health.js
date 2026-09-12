@@ -6,25 +6,37 @@ export const healthRouter = express.Router();
 
 /**
  * GET /health
- * Service liveness and database readiness probe
+ * Service Liveness Probe: Verifies Node.js process is responsive
  */
-healthRouter.get('/health', async (req, res) => {
+healthRouter.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'gitlab-intelligence-backend',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
+ * GET /ready
+ * Service Readiness Probe: Verifies database connectivity and operational state
+ */
+healthRouter.get('/ready', async (req, res) => {
   try {
-    // Check PostgreSQL connection with a quick query
     await pool.query('SELECT 1');
 
     return res.status(200).json({
-      status: 'ok',
-      db: 'connected'
+      status: 'ready',
+      db: 'connected',
+      timestamp: new Date().toISOString()
     });
   } catch (err) {
-    // Log the actual error internally for diagnostics
-    logger.error({ err: err.message }, 'Database health check probe failed');
+    logger.error({ err: err.message }, 'Database readiness check failed');
 
-    // Return safe, unprivileged response without leaking credentials or database internals
     return res.status(503).json({
-      status: 'error',
-      db: 'disconnected'
+      status: 'not_ready',
+      db: 'disconnected',
+      error: 'Database connection unavailable'
     });
   }
 });

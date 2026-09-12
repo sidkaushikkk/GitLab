@@ -12,6 +12,7 @@ export function requestLogger(req, res, next) {
     const statusCode = res.statusCode;
 
     const logData = {
+      requestId: req.id,
       method: req.method,
       url: req.originalUrl || req.url,
       status: statusCode,

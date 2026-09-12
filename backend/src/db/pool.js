@@ -7,9 +7,10 @@ const { Pool } = pg;
 // Initialize PostgreSQL connection pool
 export const pool = new Pool({
   connectionString: env.databaseUrl,
-  max: 20,
+  max: env.dbPoolMax,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000
+  connectionTimeoutMillis: 5000,
+  statement_timeout: env.dbStatementTimeoutMs
 });
 
 // Pool error handling (idle client unexpected errors)

@@ -9,6 +9,20 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 /**
+ * Validates sensitive secrets in production mode
+ */
+export function validateProductionSecrets(nodeEnv, sessionSecret, encryptionKey) {
+  if (nodeEnv === 'production') {
+    if (!sessionSecret || sessionSecret.startsWith('default-') || sessionSecret.includes('development')) {
+      throw new Error('Insecure SESSION_SECRET in production: Must be explicitly set and not use default dev secrets.');
+    }
+    if (!encryptionKey || encryptionKey.startsWith('default-') || Buffer.byteLength(encryptionKey, 'utf8') < 32) {
+      throw new Error('Invalid GITHUB_TOKEN_ENCRYPTION_KEY in production: Must be at least 32 bytes.');
+    }
+  }
+}
+
+/**
  * Validate and export application configuration
  */
 function validateConfig() {
@@ -52,6 +66,18 @@ function validateConfig() {
   const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET || 'default-github-webhook-secret-key-32chars!';
   const gitlabWebhookToken = process.env.GITLAB_WEBHOOK_TOKEN || 'default-gitlab-webhook-token-secret!';
 
+  // Rate Limiting
+  const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
+  const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '120', 10);
+
+  // Database Pool
+  const dbPoolMax = parseInt(process.env.DB_POOL_MAX || '20', 10);
+  const dbStatementTimeoutMs = parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '30000', 10);
+
+  // Production security fail-fast assertions
+  validateProductionSecrets(nodeEnv, process.env.SESSION_SECRET, process.env.GITHUB_TOKEN_ENCRYPTION_KEY);
+
+
   return {
     port,
     nodeEnv,
@@ -69,6 +95,10 @@ function validateConfig() {
     maxFileSizeBytes,
     githubFileFetchConcurrency,
     storagePath,
+    rateLimitWindowMs,
+    rateLimitMaxRequests,
+    dbPoolMax,
+    dbStatementTimeoutMs,
     isProduction: nodeEnv === 'production',
     isDevelopment: nodeEnv === 'development',
     isTest: nodeEnv === 'test'

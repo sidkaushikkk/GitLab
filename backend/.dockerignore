@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+storage/*
+!storage/.gitkeep
+test
+coverage
+.git
+.DS_Store
+*.log
